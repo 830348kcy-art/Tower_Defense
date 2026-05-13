@@ -1,0 +1,8 @@
+<Window x:Class="KingdomRushClone.Views.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Team-Tower_Defense" Height="720" Width="1180"
+        Background="#1B1F24" WindowStartupLocation="CenterScreen"
+        ResizeMode="CanMinimize">
+    <Frame x:Name="RootFrame" NavigationUIVisibility="Hidden"/>
+</Window>

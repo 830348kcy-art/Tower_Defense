@@ -1,0 +1,43 @@
+<Page x:Class="KingdomRushClone.Views.GamePage"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      Title="Game" Background="#1B1F24"
+      Focusable="True" KeyDown="OnKey">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="40"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="60"/>
+        </Grid.RowDefinitions>
+
+        <!-- HUD top -->
+        <DockPanel Grid.Row="0" Background="#222831" LastChildFill="False">
+            <Button Content="◀ 메뉴" Width="80" Click="OnExit" Background="#455A64" Foreground="White" BorderThickness="0" Margin="6"/>
+            <TextBlock x:Name="StageText" Foreground="#FFD369" FontSize="16" FontWeight="Bold" VerticalAlignment="Center" Margin="12,0"/>
+            <TextBlock x:Name="GoldText" Foreground="#FFD369" FontSize="16" VerticalAlignment="Center" Margin="12,0"/>
+            <TextBlock x:Name="LivesText" Foreground="#E63946" FontSize="16" VerticalAlignment="Center" Margin="12,0"/>
+            <TextBlock x:Name="WaveText" Foreground="#EEEEEE" FontSize="16" VerticalAlignment="Center" Margin="12,0"/>
+            <Button x:Name="SpeedBtn" Content="속도: 1x" Width="80" Click="OnSpeed" Background="#3F51B5" Foreground="White" BorderThickness="0" Margin="6" DockPanel.Dock="Right"/>
+            <Button x:Name="PauseBtn" Content="일시정지" Width="80" Click="OnPause" Background="#FF9800" Foreground="White" BorderThickness="0" Margin="6" DockPanel.Dock="Right"/>
+        </DockPanel>
+
+        <!-- Game canvas -->
+        <Border Grid.Row="1" Background="#0F1419">
+            <Canvas x:Name="GameCanvas" Width="1100" Height="620" Background="#1B2733" ClipToBounds="True" MouseLeftButtonDown="OnCanvasClick"/>
+        </Border>
+
+        <!-- Bottom skill bar -->
+        <DockPanel Grid.Row="2" Background="#222831" LastChildFill="False">
+            <Button x:Name="CallWaveBtn" Content="다음 웨이브 (N)" Width="170" Click="OnCallWave" Background="#2E7D32" Foreground="White" BorderThickness="0" Margin="6"/>
+            <TextBlock x:Name="NextWaveTimer" Foreground="#AAAAAA" FontSize="14" VerticalAlignment="Center" Margin="6,0"/>
+            <Button x:Name="MeteorBtn" Content="🔥 화포 [1]" Width="140" Click="OnMeteor" Background="#D84315" Foreground="White" BorderThickness="0" Margin="6"/>
+            <Button x:Name="ReinforceBtn" Content="🛡 지원군 [2]" Width="140" Click="OnReinforce" Background="#1976D2" Foreground="White" BorderThickness="0" Margin="6"/>
+            <TextBlock x:Name="HintText" Foreground="#FFD369" FontSize="13" VerticalAlignment="Center" Margin="20,0" DockPanel.Dock="Right"/>
+        </DockPanel>
+
+        <!-- Overlay (popups, tutorial, end screen) -->
+        <Grid x:Name="Overlay" Grid.Row="1" Background="#88000000" Visibility="Collapsed">
+            <ContentControl x:Name="OverlayContent" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+        </Grid>
+    </Grid>
+</Page>

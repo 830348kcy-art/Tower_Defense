@@ -1,0 +1,13 @@
+bin/
+obj/
+*.user
+.vs/
+*.suo
+*.sln.docstates
+[Dd]ebug/
+[Rr]elease/
+x64/
+x86/
+.idea/
+*.swp
+*.DS_Store

@@ -1,0 +1,20 @@
+<Page x:Class="KingdomRushClone.Views.StageSelectPage"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      Title="Stage Select" Background="#1B1F24">
+    <Grid Margin="20">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+        <DockPanel Grid.Row="0" Margin="0,0,0,16">
+            <Button Content="◀ 메인" Width="100" Height="36" Click="OnBack" Background="#455A64" Foreground="White" BorderThickness="0"/>
+            <TextBlock Text="스테이지 선택" FontSize="28" Foreground="#FFD369" FontWeight="Bold" Margin="20,0,0,0" VerticalAlignment="Center"/>
+            <TextBlock x:Name="StarsText" Foreground="#EEEEEE" FontSize="16" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+        </DockPanel>
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+            <WrapPanel x:Name="StagesPanel"/>
+        </ScrollViewer>
+    </Grid>
+</Page>
