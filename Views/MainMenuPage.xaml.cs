@@ -15,6 +15,7 @@ public partial class MainMenuPage : Page
 
     private void OnStart(object s, RoutedEventArgs e) => MainWindow.Instance!.NavigateTo(new StageSelectPage());
     private void OnTech(object s, RoutedEventArgs e) => MainWindow.Instance!.NavigateTo(new TechTreePage());
+    private void OnGuide(object s, RoutedEventArgs e) => MainWindow.Instance!.NavigateTo(new TowerGuidePage());
     private void OnExit(object s, RoutedEventArgs e) => Application.Current.Shutdown();
     private void OnHelp(object s, RoutedEventArgs e)
     {
