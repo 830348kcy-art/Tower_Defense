@@ -37,7 +37,6 @@ public partial class GamePage : Page
     private SkillMode _skillMode = SkillMode.None;
     private Ellipse? _skillIndicator;
     private bool _resultShown;
-    private bool _tutorialActive;
 
     private enum SkillMode { None, Meteor, Reinforce }
 
@@ -390,22 +389,19 @@ public partial class GamePage : Page
     private void AddTowerVisual(TowerInstance t)
     {
         var g = new Grid { Width = 36, Height = 36 };
-        var rect = new Rectangle
-        {
-            Width = 36, Height = 36,
-            Fill = (Brush)new BrushConverter().ConvertFromString(t.CurrentColorHex)!,
-            Stroke = Brushes.Black, StrokeThickness = 1.5,
-            RadiusX = 6, RadiusY = 6
-        };
-        g.Children.Add(rect);
+        g.Children.Add(CreatePixelArtContainer(t));
+        
         var label = new TextBlock
         {
-            Text = TowerLabel(t.Def.Kind),
-            Foreground = Brushes.White, FontWeight = FontWeights.Bold, FontSize = 16,
-            HorizontalAlignment = HorizontalAlignment.Center,
-            VerticalAlignment = VerticalAlignment.Center
+            Text = TowerLabel(t.Def.Kind) + (t.Level > 0 ? (t.Level + 1).ToString() : ""),
+            Foreground = Brushes.White, FontWeight = FontWeights.Bold, FontSize = 10,
+            HorizontalAlignment = HorizontalAlignment.Right,
+            VerticalAlignment = VerticalAlignment.Bottom,
+            Margin = new Thickness(0,0,2,2),
+            IsHitTestVisible = false
         };
         g.Children.Add(label);
+
         g.Tag = t;
         g.IsHitTestVisible = false;
         Canvas.SetLeft(g, t.Pos.X - 18);
@@ -414,12 +410,139 @@ public partial class GamePage : Page
         _towerShapes[t] = g;
     }
 
+    private FrameworkElement CreatePixelArtContainer(TowerInstance t)
+    {
+        var viewBox = new Viewbox { Stretch = Stretch.Uniform };
+        var canvas = new Canvas { Width = 8, Height = 8 };
+        
+        string[] pattern = GetTowerPattern(t.Def.Kind);
+        Brush mainBrush = (Brush)new BrushConverter().ConvertFromString(t.CurrentTowerColorHex)!;
+        Brush accentBrush = Brushes.White;
+        Brush shadowBrush = new SolidColorBrush(Color.FromArgb(80, 0, 0, 0));
+
+        for (int y = 0; y < 8; y++)
+        {
+            for (int x = 0; x < 8; x++)
+            {
+                char c = pattern[y][x];
+                if (c == ' ') continue;
+
+                var pixel = new Rectangle { Width = 1.05, Height = 1.05 };
+                pixel.Fill = c switch
+                {
+                    'X' => mainBrush,
+                    'A' => accentBrush,
+                    'S' => shadowBrush,
+                    _ => mainBrush
+                };
+
+                Canvas.SetLeft(pixel, x);
+                Canvas.SetTop(pixel, y);
+                canvas.Children.Add(pixel);
+            }
+        }
+
+        viewBox.Child = canvas;
+        return viewBox;
+    }
+
+    private string[] GetTowerPattern(TowerKind kind) => kind switch
+    {
+        // 아처: 활 모양 디자인
+        TowerKind.Archer => new[]
+        {
+            "  XXXX  ",
+            " XXXXXX ",
+            "XXA  AXX",
+            "XA    AX",
+            "XXA  AXX",
+            " XXXXXX ",
+            "  XXXX  ",
+            "   SS   "
+        },
+        // 마법: 위자드 모자 모양
+        TowerKind.Mage => new[]
+        {
+            "   A    ",
+            "  XXX   ",
+            "  XXX   ",
+            " XXXXX  ",
+            " XXXXX  ",
+            "XXXXXXX ",
+            "  SSS   ",
+            "  SSS   "
+        },
+        // 폭격: 대포 모양
+        TowerKind.Bombard => new[]
+        {
+            "        ",
+            "  XXXX  ",
+            " XXXXXX ",
+            " XXXXXX ",
+            "  XXXX  ",
+            " SSSSSSS",
+            " SSSSSSS",
+            " SSSSSSS"
+        },
+        // 병영: 방패/초소 모양
+        TowerKind.Barracks => new[]
+        {
+            " XXXXXX ",
+            " XXXXXX ",
+            " XXAAXX ",
+            " XXAAXX ",
+            " XXXXXX ",
+            " XXXXXX ",
+            " SSSSSS ",
+            " SSSSSS "
+        },
+        // 슬로우: 눈송이 모양
+        TowerKind.Slow => new[]
+        {
+            "   X    ",
+            " X X X  ",
+            "  XXX   ",
+            "XXXXXXX ",
+            "  XXX   ",
+            " X X X  ",
+            "   X    ",
+            "        "
+        },
+        _ => new[]
+        {
+            "XXXXXXXX",
+            "XXXXXXXX",
+            "XXXXXXXX",
+            "XXXXXXXX",
+            "XXXXXXXX",
+            "XXXXXXXX",
+            "XXXXXXXX",
+            "XXXXXXXX"
+        }
+    };
+
     private void UpdateTowerVisual(TowerInstance t)
     {
-        if (_towerShapes[t] is Grid g && g.Children[0] is Rectangle r)
+        if (_towerShapes.TryGetValue(t, out var visual) && visual is Grid g)
         {
-            r.Fill = (Brush)new BrushConverter().ConvertFromString(t.CurrentColorHex)!;
-            if (g.Children[1] is TextBlock tb) tb.Text = TowerLabel(t.Def.Kind) + (t.Level > 0 ? (t.Level + 1).ToString() : "");
+            // 기존 도트와 라벨 제거 후 새로 생성
+            g.Children.Clear();
+            g.Children.Add(CreatePixelArtContainer(t));
+            
+            var label = new TextBlock
+            {
+                Text = TowerLabel(t.Def.Kind) + (t.Level > 0 ? (t.Level + 1).ToString() : ""),
+                Foreground = Brushes.White, FontWeight = FontWeights.Bold, FontSize = 10,
+                HorizontalAlignment = HorizontalAlignment.Right,
+                VerticalAlignment = VerticalAlignment.Bottom,
+                Margin = new Thickness(0,0,2,2),
+                IsHitTestVisible = false
+            };
+            g.Children.Add(label);
+
+            // 스케일 애니메이션 유지
+            g.RenderTransformOrigin = new Point(0.5, 0.5);
+            g.RenderTransform = new ScaleTransform(t.VisualScale, t.VisualScale);
         }
     }
 
@@ -429,6 +552,7 @@ public partial class GamePage : Page
         TowerKind.Mage => "M",
         TowerKind.Bombard => "B",
         TowerKind.Barracks => "S",
+        TowerKind.Slow => "L",
         _ => "?"
     };
 
@@ -516,7 +640,7 @@ public partial class GamePage : Page
             var btn = new Button
             {
                 Width = 220, Height = 44, Margin = new Thickness(8, 4, 8, 4),
-                Background = (Brush)new BrushConverter().ConvertFromString(def.ColorHex)!,
+                Background = (Brush)new BrushConverter().ConvertFromString(def.TowerColorHex)!,
                 Foreground = Brushes.White, BorderThickness = new Thickness(0),
                 Content = $"{def.Name}  —  {cost}G",
                 IsEnabled = _engine.Gold >= cost
@@ -577,7 +701,7 @@ public partial class GamePage : Page
                 {
                     Content = $"[A] {t.Def.BranchA.Name}  ({t.BranchACost}G)",
                     Width = 240, Height = 38, Margin = new Thickness(8, 4, 8, 4),
-                    Background = (Brush)new BrushConverter().ConvertFromString(t.Def.BranchA.ColorHex)!,
+                    Background = (Brush)new BrushConverter().ConvertFromString(t.Def.BranchA.TowerColorHex)!,
                     Foreground = Brushes.White, BorderThickness = new Thickness(0),
                     IsEnabled = _engine.Gold >= t.BranchACost
                 };
@@ -590,7 +714,7 @@ public partial class GamePage : Page
                 {
                     Content = $"[B] {t.Def.BranchB.Name}  ({t.BranchBCost}G)",
                     Width = 240, Height = 38, Margin = new Thickness(8, 4, 8, 4),
-                    Background = (Brush)new BrushConverter().ConvertFromString(t.Def.BranchB.ColorHex)!,
+                    Background = (Brush)new BrushConverter().ConvertFromString(t.Def.BranchB.TowerColorHex)!,
                     Foreground = Brushes.White, BorderThickness = new Thickness(0),
                     IsEnabled = _engine.Gold >= t.BranchBCost
                 };
@@ -675,7 +799,6 @@ public partial class GamePage : Page
 
     private void ShowTutorial()
     {
-        _tutorialActive = true;
         var msgs = new[]
         {
             "튜토리얼 — 1/5\n\n노란색 둥근 슬롯을 클릭하면 타워를 건설할 수 있습니다.\n좌하단 [다음 웨이브 N] 버튼으로 적이 출현합니다.",
@@ -694,7 +817,6 @@ public partial class GamePage : Page
                 SaveManager.Current.TutorialDone = true;
                 _engine.Gold += 200;
                 SaveManager.Save();
-                _tutorialActive = false;
                 ClearSelection();
                 return;
             }

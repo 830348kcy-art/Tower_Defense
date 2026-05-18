@@ -20,9 +20,9 @@ public readonly struct Vec2(double x, double y)
 
 public enum DamageType { Physical, Magic, Explosive, True }
 
-public enum ArmorType { None, Light, Heavy, Magical, Flying }
+public enum ArmorType { None, Light, Heavy, Magical, Flying, SlowImmune }
 
-public enum TowerKind { Archer, Mage, Bombard, Barracks }
+public enum TowerKind { Archer, Mage, Bombard, Barracks, Slow }
 
 public enum TowerBranch { None, A, B }
 

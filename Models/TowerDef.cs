@@ -25,7 +25,10 @@ public class TowerDef
     public TowerKind Kind;
     public string Name = "";
     public string Description = "";
-    public string ColorHex = "#888888";
+    public string GuideColorHex = "#888888";      // 도감 UI용 색상
+    public string TowerColorHex = "#888888";      // 게임 내 타일 위 타워 색상
+    public string ProjectileColorHex = "#FFFFFF"; // 발사되는 투사체 색상
+    public string ImagePath = "";                 // 타워 이미지 경로 (예: "/Assets/Towers/archer_v1.png")
     public List<TowerLevel> Levels = new();
     public TowerDef? BranchA;
     public TowerDef? BranchB;

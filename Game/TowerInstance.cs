@@ -14,6 +14,7 @@ public class TowerInstance
     public List<Soldier> Soldiers = new();
     public Vec2 RallyPoint;
     public bool RallyCustom;
+    public double VisualScale = 1.0; // 추가: 렌더링용 스케일
 
     public TowerLevel CurrentLevel
     {
@@ -68,13 +69,43 @@ public class TowerInstance
         }
     }
 
-    public string CurrentColorHex
+    public string CurrentGuideColorHex
     {
         get
         {
-            if (Branch == TowerBranch.A && Def.BranchA != null) return Def.BranchA.ColorHex;
-            if (Branch == TowerBranch.B && Def.BranchB != null) return Def.BranchB.ColorHex;
-            return Def.ColorHex;
+            if (Branch == TowerBranch.A && Def.BranchA != null) return Def.BranchA.GuideColorHex;
+            if (Branch == TowerBranch.B && Def.BranchB != null) return Def.BranchB.GuideColorHex;
+            return Def.GuideColorHex;
+        }
+    }
+
+    public string CurrentProjectileColorHex
+    {
+        get
+        {
+            if (Branch == TowerBranch.A && Def.BranchA != null) return Def.BranchA.ProjectileColorHex;
+            if (Branch == TowerBranch.B && Def.BranchB != null) return Def.BranchB.ProjectileColorHex;
+            return Def.ProjectileColorHex;
+        }
+    }
+
+    public string CurrentTowerColorHex
+    {
+        get
+        {
+            if (Branch == TowerBranch.A && Def.BranchA != null) return Def.BranchA.TowerColorHex;
+            if (Branch == TowerBranch.B && Def.BranchB != null) return Def.BranchB.TowerColorHex;
+            return Def.TowerColorHex;
+        }
+    }
+
+    public string CurrentImagePath
+    {
+        get
+        {
+            if (Branch == TowerBranch.A && Def.BranchA != null) return Def.BranchA.ImagePath;
+            if (Branch == TowerBranch.B && Def.BranchB != null) return Def.BranchB.ImagePath;
+            return Def.ImagePath;
         }
     }
 
@@ -93,13 +124,16 @@ public class TowerInstance
 
         var lvl = CurrentLevel;
         EnemyInstance? best = null;
-        double bestProgress = -1;
-        foreach (var e in game.Enemies)
+        double bestProgress = double.MinValue;
+        // 안전한 순회를 위해 ToArray() 사용
+        foreach (var e in game.Enemies.ToArray())
         {
             if (!e.Alive) continue;
             if (Pos.DistanceTo(e.Pos) > EffectiveRange) continue;
             if (Def.Kind == TowerKind.Bombard && e.Def.IsFlying) continue;
-            double progress = e.WaypointIndex + (e.WaypointIndex < e.Path.Count - 1 ? 1 - e.Pos.DistanceTo(e.Path[e.WaypointIndex + 1]) / 100 : 1);
+            // 진행도 계산: 웨이포인트 인덱스 + (다음 지점까지의 거리 역산)
+            double distToNext = e.WaypointIndex < e.Path.Count - 1 ? e.Pos.DistanceTo(e.Path[e.WaypointIndex + 1]) : 0;
+            double progress = e.WaypointIndex * 1000 - distToNext; 
             if (progress > bestProgress)
             {
                 bestProgress = progress;
@@ -109,11 +143,14 @@ public class TowerInstance
         if (best == null) return;
 
         Cooldown = EffectiveAttackInterval;
+        VisualScale = 1.2; // 발사 시 20% 커짐
         Fire(best, game, lvl);
     }
 
     private void Fire(EnemyInstance target, GameEngine game, TowerLevel lvl)
     {
+        if (lvl == null || target == null) return;
+
         var p = new Projectile
         {
             Pos = Pos,
@@ -125,9 +162,11 @@ public class TowerInstance
             SlowDuration = lvl.SlowDuration,
             DotDamage = lvl.DotDamage,
             DotDuration = lvl.DotDuration,
-            ColorHex = CurrentColorHex,
+            ColorHex = CurrentProjectileColorHex,
             Speed = Def.Kind == TowerKind.Bombard ? 280 : 500
         };
+
+        p.Velocity = (target.Pos - Pos).Normalized() * p.Speed;
 
         if (Def.Kind == TowerKind.Bombard)
         {
@@ -141,7 +180,8 @@ public class TowerInstance
         {
             int extra = 2;
             int added = 0;
-            foreach (var e in game.Enemies)
+            // 다중 타겟 발사 시에도 안전하게 리스트 복사본 사용
+            foreach (var e in game.Enemies.ToArray())
             {
                 if (added >= extra) break;
                 if (e == target || !e.Alive) continue;
@@ -150,7 +190,8 @@ public class TowerInstance
                 {
                     Pos = Pos, Target = e,
                     Damage = EffectiveDamage * 0.7, DamageType = lvl.DamageType,
-                    ColorHex = CurrentColorHex, Speed = 500
+                    Velocity = (e.Pos - Pos).Normalized() * 500,
+                    ColorHex = CurrentProjectileColorHex, Speed = 500
                 };
                 game.Projectiles.Add(p2);
                 added++;

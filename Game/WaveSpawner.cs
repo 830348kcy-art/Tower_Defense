@@ -11,7 +11,6 @@ public class WaveSpawner
     private readonly GameEngine _engine;
     private int _waveIndex = -1;
     private double _timeUntilAuto;
-    private bool _autoStart;
     private readonly List<EntryState> _activeEntries = new();
     private class EntryState
     {
