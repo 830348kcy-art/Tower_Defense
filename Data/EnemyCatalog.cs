@@ -19,6 +19,19 @@ public static class EnemyCatalog
             MaxHp = 25, Speed = 95, Armor = ArmorType.None, PhysicalResist = 0.0, MagicResist = 0.0,
             GoldReward = 5, ColorHex = "#AED581", Radius = 9, SlowImmune = true
         }},
+        { EnemyKind.SplitBody, new EnemyDef
+        {
+            Kind = EnemyKind.SplitBody, Name = "Split Body",
+            MaxHp = 110, Speed = 48, Armor = ArmorType.Light, PhysicalResist = 0.1, MagicResist = 0.0,
+            GoldReward = 10, ColorHex = "#84CC16", Radius = 14,
+            DeathSpawns = { EnemyKind.SplitSmall, EnemyKind.SplitSmall, EnemyKind.SplitSmall }
+        }},
+        { EnemyKind.SplitSmall, new EnemyDef
+        {
+            Kind = EnemyKind.SplitSmall, Name = "Split Small",
+            MaxHp = 35, Speed = 72, Armor = ArmorType.None, PhysicalResist = 0.0, MagicResist = 0.0,
+            GoldReward = 3, ColorHex = "#BEF264", Radius = 8
+        }},
         { EnemyKind.OrcWarrior, new EnemyDef
         {
             Kind = EnemyKind.OrcWarrior, Name = "오크 전사",
@@ -43,6 +56,20 @@ public static class EnemyCatalog
             Kind = EnemyKind.DarkKnight, Name = "암흑 기사",
             MaxHp = 260, Speed = 45, Armor = ArmorType.Heavy, PhysicalResist = 0.5, MagicResist = 0.15,
             GoldReward = 28, ColorHex = "#263238", Radius = 14, LivesCost = 2
+        }},
+        { EnemyKind.SplitMidBoss, new EnemyDef
+        {
+            Kind = EnemyKind.SplitMidBoss, Name = "Split Mid Boss",
+            MaxHp = 1500, Speed = 30, Armor = ArmorType.Heavy, PhysicalResist = 0.35, MagicResist = 0.15,
+            GoldReward = 180, ColorHex = "#F97316", Radius = 22, LivesCost = 5, IsMidBoss = true,
+            DeathSpawns = { EnemyKind.SplitBody, EnemyKind.SplitBody }
+        }},
+        { EnemyKind.SplitBoss, new EnemyDef
+        {
+            Kind = EnemyKind.SplitBoss, Name = "Split Boss",
+            MaxHp = 4000, Speed = 28, Armor = ArmorType.Heavy, PhysicalResist = 0.45, MagicResist = 0.25,
+            GoldReward = 500, ColorHex = "#DC2626", Radius = 28, LivesCost = 10, IsBoss = true,
+            DeathSpawns = { EnemyKind.SplitMidBoss, EnemyKind.SplitMidBoss }
         }},
         { EnemyKind.MidBoss, new EnemyDef
         {

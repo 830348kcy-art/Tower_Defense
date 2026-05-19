@@ -35,7 +35,11 @@ public enum EnemyKind
     TrollShaman,
     DarkKnight,
     MidBoss,
-    Boss
+    Boss,
+    SplitBody,
+    SplitSmall,
+    SplitMidBoss,
+    SplitBoss
 }
 
 public enum GameSpeed { Paused = 0, Normal = 1, Fast = 2 }

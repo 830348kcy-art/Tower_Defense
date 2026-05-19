@@ -27,7 +27,7 @@ public partial class GamePage : Page
     private (int c, int r) _hoverTile = (-1, -1);
 
     private readonly Dictionary<TowerInstance, FrameworkElement> _towerShapes = new();
-    private readonly Dictionary<EnemyInstance, (Ellipse body, Rectangle hpBg, Rectangle hpFg)> _enemyShapes = new();
+    private readonly Dictionary<EnemyInstance, (Image body, Rectangle hpBg, Rectangle hpFg)> _enemyShapes = new();
     private readonly Dictionary<Projectile, Shape> _projShapes = new();
     private readonly Dictionary<HitEffect, Ellipse> _fxShapes = new();
     private readonly Dictionary<Soldier, (Rectangle body, Rectangle hp)> _soldierShapes = new();
@@ -58,8 +58,9 @@ public partial class GamePage : Page
         Loaded += (_, _) => Focus();
         Unloaded += (_, _) => _timer.Stop();
 
-        if (stage.Number == 1 && !SaveManager.Current.TutorialDone) ShowTutorial();
         UpdateHud();
+        if (stage.Number == 1 && !SaveManager.Current.TutorialDone) ShowTutorial();
+        else ShowStageIntro();
     }
 
     private void OnFrame(object? sender, EventArgs e)
@@ -278,12 +279,14 @@ public partial class GamePage : Page
         {
             if (!_enemyShapes.ContainsKey(e))
             {
-                var body = new Ellipse
+                double spriteSize = e.Def.Radius * 2.4;
+                var body = new Image
                 {
-                    Width = e.Def.Radius * 2, Height = e.Def.Radius * 2,
-                    Fill = (Brush)new BrushConverter().ConvertFromString(e.Def.ColorHex)!,
-                    Stroke = e.Def.IsBoss ? Brushes.Yellow : e.Def.IsFlying ? Brushes.White : Brushes.Black,
-                    StrokeThickness = e.Def.IsBoss ? 3 : 1, IsHitTestVisible = false
+                    Width = spriteSize,
+                    Height = spriteSize,
+                    Source = EnemyFallbackImageFactory.CreateSprite(e.Def.Kind),
+                    Stretch = Stretch.Uniform,
+                    IsHitTestVisible = false
                 };
                 var bg = new Rectangle { Width = e.Def.Radius * 2, Height = 4, Fill = Brushes.Black, IsHitTestVisible = false };
                 var fg = new Rectangle { Width = e.Def.Radius * 2, Height = 4, Fill = Brushes.LimeGreen, IsHitTestVisible = false };
@@ -293,8 +296,8 @@ public partial class GamePage : Page
                 GameCanvas.Children.Add(fg);
             }
             var sh = _enemyShapes[e];
-            Canvas.SetLeft(sh.body, e.Pos.X - e.Def.Radius);
-            Canvas.SetTop(sh.body, e.Pos.Y - e.Def.Radius);
+            Canvas.SetLeft(sh.body, e.Pos.X - sh.body.Width / 2);
+            Canvas.SetTop(sh.body, e.Pos.Y - sh.body.Height / 2);
             Canvas.SetLeft(sh.hpBg, e.Pos.X - e.Def.Radius);
             Canvas.SetTop(sh.hpBg, e.Pos.Y - e.Def.Radius - 8);
             Canvas.SetLeft(sh.hpFg, e.Pos.X - e.Def.Radius);
@@ -452,6 +455,32 @@ public partial class GamePage : Page
             SkillMode.Reinforce => "맵을 클릭하여 지원군 소환",
             _ => ""
         };
+        UpdateBossHud();
+    }
+
+    private void UpdateBossHud()
+    {
+        EnemyInstance? boss = null;
+        foreach (var enemy in _engine.Enemies)
+        {
+            if (enemy.Alive && enemy.Def.IsBoss)
+            {
+                boss = enemy;
+                break;
+            }
+        }
+
+        if (boss == null)
+        {
+            BossHealthPanel.Visibility = Visibility.Collapsed;
+            return;
+        }
+
+        var ratio = Math.Max(0, Math.Min(1, boss.Hp / Math.Max(1, boss.MaxHp)));
+        BossHealthPanel.Visibility = Visibility.Visible;
+        BossHealthName.Text = boss.Def.Name;
+        BossHealthFill.Width = 220 * ratio;
+        BossHealthText.Text = $"{Math.Ceiling(Math.Max(0, boss.Hp))}/{Math.Ceiling(boss.MaxHp)} HP";
     }
 
     // ---------------- INTERACTION ----------------
@@ -637,6 +666,73 @@ public partial class GamePage : Page
     private void ClearSkillIndicator()
     {
         if (_skillIndicator != null) { GameCanvas.Children.Remove(_skillIndicator); _skillIndicator = null; }
+    }
+
+    private void ShowStageIntro()
+    {
+        var panel = new StackPanel { Background = Brushes.Black, Width = 520 };
+        panel.Children.Add(new TextBlock
+        {
+            Text = $"Stage {_stage.Number}",
+            FontSize = 28,
+            Foreground = Brushes.Gold,
+            FontWeight = FontWeights.Bold,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            Margin = new Thickness(18, 18, 18, 6)
+        });
+        panel.Children.Add(new TextBlock
+        {
+            Text = "Enemies",
+            FontSize = 14,
+            Foreground = Brushes.LightGray,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            Margin = new Thickness(0, 0, 0, 12)
+        });
+
+        var wrap = new WrapPanel { Margin = new Thickness(16, 0, 16, 8), HorizontalAlignment = HorizontalAlignment.Center };
+        var seen = new HashSet<EnemyKind>();
+        foreach (var entry in _stage.Waves.SelectMany(wave => wave.Entries))
+        {
+            if (!seen.Add(entry.Enemy)) continue;
+            var def = EnemyCatalog.Enemies[entry.Enemy];
+            var item = new StackPanel { Width = 96, Margin = new Thickness(6), HorizontalAlignment = HorizontalAlignment.Center };
+            item.Children.Add(new Image
+            {
+                Source = EnemyFallbackImageFactory.CreateIcon(entry.Enemy),
+                Width = 58,
+                Height = 58,
+                Stretch = Stretch.Uniform,
+                HorizontalAlignment = HorizontalAlignment.Center
+            });
+            item.Children.Add(new TextBlock
+            {
+                Text = def.Name,
+                Foreground = Brushes.White,
+                FontSize = 11,
+                TextAlignment = TextAlignment.Center,
+                TextWrapping = TextWrapping.Wrap,
+                Margin = new Thickness(0, 4, 0, 0)
+            });
+            wrap.Children.Add(item);
+        }
+        panel.Children.Add(wrap);
+
+        var start = new Button
+        {
+            Content = "Start",
+            Width = 120,
+            Height = 34,
+            Margin = new Thickness(0, 10, 0, 18),
+            Background = Brushes.SeaGreen,
+            Foreground = Brushes.White,
+            BorderThickness = new Thickness(0),
+            HorizontalAlignment = HorizontalAlignment.Center
+        };
+        start.Click += (s, e) => ClearSelection();
+        panel.Children.Add(start);
+
+        Overlay.Visibility = Visibility.Visible;
+        OverlayContent.Content = panel;
     }
 
     // ---------------- BUTTONS ----------------

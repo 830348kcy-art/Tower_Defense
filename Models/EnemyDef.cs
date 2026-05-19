@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+
 namespace KingdomRushClone.Models;
 
 public class EnemyDef
@@ -19,6 +21,7 @@ public class EnemyDef
     public double HealAmount;
     public double HealInterval;
     public double HealRadius;
+    public List<EnemyKind> DeathSpawns = new();
     public bool IsBoss;
     public bool IsMidBoss;
 }

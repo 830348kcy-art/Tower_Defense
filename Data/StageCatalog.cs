@@ -97,8 +97,8 @@ public static class StageCatalog
         var rand = new Random(stage * 7919);
         int waveCount = stage switch { <= 5 => 4, <= 10 => 6, <= 15 => 7, <= 20 => 8, <= 25 => 9, _ => 10 };
         var waves = new List<WaveDef>();
-        bool hasMid = stage % 5 == 0 && stage % 10 != 0;
-        bool hasBoss = stage % 10 == 0;
+        bool hasMid = HasMidBossFor(stage);
+        bool hasBoss = HasBossFor(stage);
         int pathCount = PathFor(stage).Count;
 
         for (int w = 0; w < waveCount; w++)
@@ -138,18 +138,26 @@ public static class StageCatalog
         {
             var bossWave = new WaveDef { TimeUntilNext = 30 };
             bossWave.Entries.Add(new WaveEntry { Enemy = EnemyKind.GoblinSoldier, Count = 4, SpawnInterval = 0.6, SpawnPath = 0 });
-            bossWave.Entries.Add(new WaveEntry { Enemy = EnemyKind.MidBoss, Count = 1, InitialDelay = 3, SpawnPath = 0 });
+            bossWave.Entries.Add(new WaveEntry { Enemy = MidBossFor(stage), Count = 1, InitialDelay = 3, SpawnPath = 0 });
             waves.Add(bossWave);
         }
         if (hasBoss)
         {
             var bossWave = new WaveDef { TimeUntilNext = 30 };
             bossWave.Entries.Add(new WaveEntry { Enemy = EnemyKind.OrcWarrior, Count = 6, SpawnInterval = 0.7, SpawnPath = 0 });
-            bossWave.Entries.Add(new WaveEntry { Enemy = EnemyKind.Boss, Count = 1, InitialDelay = 4, SpawnPath = 0 });
+            bossWave.Entries.Add(new WaveEntry { Enemy = BossFor(stage), Count = 1, InitialDelay = 4, SpawnPath = 0 });
             waves.Add(bossWave);
         }
         return waves;
     }
+
+    private static bool HasMidBossFor(int stage) => stage == 13 || (stage % 5 == 0 && stage % 10 != 0 && stage != 15);
+
+    private static bool HasBossFor(int stage) => stage == 15 || stage % 10 == 0;
+
+    private static EnemyKind MidBossFor(int stage) => stage == 13 ? EnemyKind.SplitMidBoss : EnemyKind.MidBoss;
+
+    private static EnemyKind BossFor(int stage) => stage == 15 ? EnemyKind.SplitBoss : EnemyKind.Boss;
 
     private static List<StageDef> Build()
     {
@@ -168,8 +176,8 @@ public static class StageCatalog
                 BuildSlots = BuildSlotsAround(paths),
                 Waves = WavesFor(n),
                 AllowedTowers = AllowedTowersFor(n),
-                HasMidBoss = n % 5 == 0 && n % 10 != 0,
-                HasBoss = n % 10 == 0,
+                HasMidBoss = HasMidBossFor(n),
+                HasBoss = HasBossFor(n),
                 EnemyHpScale = 1.0 + (n - 1) * 0.10,
                 EnemySpeedScale = 1.0 + (n - 1) * 0.015,
                 Effects = EffectsFor(n),
