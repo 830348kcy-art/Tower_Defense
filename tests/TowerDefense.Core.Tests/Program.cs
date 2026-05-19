@@ -1,10 +1,9 @@
+using System.Windows.Media;
 using TowerDefense.Core;
 using TowerDefense.Data;
 using TowerDefense.Enemies;
-using TowerDefense.Sandbox;
 using TowerDefense.Towers;
 using TowerDefense.UI;
-using System.Windows.Media;
 
 var tests = new (string Name, Action Test)[]
 {
@@ -20,14 +19,6 @@ var tests = new (string Name, Action Test)[]
     ("Slow effect keeps stronger factor and longer duration", SlowEffectKeepsStrongerFactorAndLongerDuration),
     ("Invincible enemies ignore slow", InvincibleEnemiesIgnoreSlow),
     ("SlowTower applies slow on hit", SlowTowerAppliesSlowOnHit),
-    ("SandboxGame spawns enemies and towers attack", SandboxGameSpawnsEnemiesAndTowersAttack),
-    ("SandboxGame slow tower reduces enemy speed", SandboxGameSlowTowerReducesEnemySpeed),
-    ("SandboxGame slow tower prioritizes fast enemies", SandboxGameSlowTowerPrioritizesFastEnemies),
-    ("SandboxGame reports slowed enemy count", SandboxGameReportsSlowedEnemyCount),
-    ("SandboxGame split wave includes chapter three split enemies", SandboxGameSplitWaveIncludesChapterThreeSplitEnemies),
-    ("SandboxGame spawns split children after death", SandboxGameSpawnsSplitChildrenAfterDeath),
-    ("SandboxGame exposes boss health while boss exists", SandboxGameExposesBossHealthWhileBossExists),
-    ("SandboxGame clears boss health after boss dies", SandboxGameClearsBossHealthAfterBossDies),
     ("Split boss spawns split mini bosses", SplitBossSpawnsSplitMiniBosses),
     ("Split mini boss spawns normal split bodies", SplitMiniBossSpawnsNormalSplitBodies),
     ("Enemy preview factory creates image source", EnemyPreviewFactoryCreatesImageSource),
@@ -100,8 +91,14 @@ static void WavePlanEmitsBossWaveForBossStages()
     AssertTrue(WavePlan.IsBossStage(5), "stage 5 is boss stage");
     AssertFalse(WavePlan.IsMiniBossStage(5), "stage 5 is not mini boss stage");
 
-    var wave = WavePlan.GetWave(5, 8).ToList();
-    AssertTrue(wave.Any(entry => entry.EnemyId == "boss_normal"), "chapter 1 boss appears on S5 W8");
+    var chapterOneBoss = WavePlan.GetWave(5, 8).ToList();
+    AssertTrue(chapterOneBoss.Any(entry => entry.EnemyId == "boss_normal"), "chapter 1 boss appears on S5 W8");
+
+    var chapterThreeMiniBoss = WavePlan.GetWave(13, 8).ToList();
+    AssertTrue(chapterThreeMiniBoss.Any(entry => entry.EnemyId == "miniboss_split"), "chapter 3 mini boss appears on S13 W8");
+
+    var chapterThreeBoss = WavePlan.GetWave(15, 8).ToList();
+    AssertTrue(chapterThreeBoss.Any(entry => entry.EnemyId == "boss_split"), "chapter 3 boss appears on S15 W8");
 }
 
 static void WaveManagerSpawnsAndRemovesEnemies()
@@ -170,7 +167,7 @@ static void MainViewModelRequestsIntroBeforeStartingStage()
 
     AssertEqual(1, WaveManager.Instance.CurrentStage, "stage after intro confirmation");
     AssertEqual(1, WaveManager.Instance.CurrentWave, "wave after intro confirmation");
-    AssertTrue(viewModel.StatusText.Contains("활성 적"), "status text after stage start");
+    AssertTrue(viewModel.StatusText.Contains("S1 W1"), "status text after stage start");
 }
 
 static void SlowEffectChangesSpeedAndExpires()
@@ -233,131 +230,6 @@ static void SlowTowerAppliesSlowOnHit()
 
     AssertNearly(0.5f, enemy.SlowFactor, "slow tower factor");
     AssertNearly(80f, enemy.ActualMoveSpeed, "fast enemy slowed by tower");
-}
-
-static void SandboxGameSpawnsEnemiesAndTowersAttack()
-{
-    var game = new SandboxGame();
-    game.StartWave();
-
-    AssertTrue(game.Enemies.Count > 0, "sandbox wave spawns enemies");
-    AssertTrue(game.Towers.Count >= 2, "sandbox has test towers");
-
-    var first = game.Enemies[0];
-    var initialHp = first.Enemy.CurrentHp;
-
-    game.Tick(0.25);
-
-    AssertTrue(first.Enemy.CurrentHp < initialHp, "basic tower damages enemy");
-    AssertTrue(first.X > 0, "enemy moves on path");
-}
-
-static void SandboxGameSlowTowerReducesEnemySpeed()
-{
-    var game = new SandboxGame();
-    game.StartWave();
-
-    var enemy = game.Enemies.Single(enemy => enemy.Enemy.EnemyId == "enemy_fast");
-    var normalSpeed = enemy.Enemy.ActualMoveSpeed;
-
-    game.Tick(0.25);
-
-    AssertTrue(enemy.Enemy.SlowFactor < 1.0f, "slow tower applies slow factor");
-    AssertTrue(enemy.Enemy.ActualMoveSpeed < normalSpeed, "slow tower reduces actual speed");
-}
-
-static void SandboxGameSlowTowerPrioritizesFastEnemies()
-{
-    var game = new SandboxGame();
-    game.StartWave();
-
-    var fastEnemy = game.Enemies.Single(enemy => enemy.Enemy.EnemyId == "enemy_fast");
-
-    game.Tick(0.25);
-
-    AssertTrue(fastEnemy.Enemy.SlowFactor < 1.0f, "slow tower should prioritize fast enemy in range");
-    AssertNearly(80f, fastEnemy.Enemy.ActualMoveSpeed, "fast enemy slowed to normal speed");
-}
-
-static void SandboxGameReportsSlowedEnemyCount()
-{
-    var game = new SandboxGame();
-    game.StartWave();
-
-    AssertEqual(0, game.SlowedEnemyCount, "slowed enemy count before tick");
-
-    game.Tick(0.25);
-
-    AssertTrue(game.SlowedEnemyCount > 0, "slowed enemy count after slow tower fires");
-}
-
-static void SandboxGameSplitWaveIncludesChapterThreeSplitEnemies()
-{
-    var game = new SandboxGame();
-    game.StartSplitWave();
-
-    AssertTrue(game.Enemies.Any(enemy => enemy.Enemy.EnemyId == "boss_split"), "sandbox split wave includes split boss");
-    AssertTrue(game.Enemies.Any(enemy => enemy.Enemy.EnemyId == "miniboss_split"), "sandbox split wave includes split mini boss");
-    AssertTrue(game.Enemies.Any(enemy => enemy.Enemy.EnemyId == "enemy_split_body"), "sandbox split wave includes normal split body");
-}
-
-static void SandboxGameSpawnsSplitChildrenAfterDeath()
-{
-    var game = new SandboxGame();
-    game.StartSplitWave();
-
-    var boss = game.Enemies.Single(enemy => enemy.Enemy.EnemyId == "boss_split");
-    boss.Enemy.TakeDamage(boss.Enemy.CurrentHp, DamageType.True);
-    game.Tick(0);
-
-    AssertFalse(game.Enemies.Contains(boss), "dead split boss removed from sandbox");
-    AssertTrue(game.Enemies.Count(enemy => enemy.Enemy.EnemyId == "miniboss_split") >= 3, "split boss adds two mini bosses");
-
-    var miniBossCount = game.Enemies.Count(enemy => enemy.Enemy.EnemyId == "miniboss_split");
-    var splitBodyCount = game.Enemies.Count(enemy => enemy.Enemy.EnemyId == "enemy_split_body");
-    var miniBoss = game.Enemies.First(enemy => enemy.Enemy.EnemyId == "miniboss_split");
-
-    miniBoss.Enemy.TakeDamage(miniBoss.Enemy.CurrentHp, DamageType.True);
-    game.Tick(0);
-
-    AssertEqual(miniBossCount - 1, game.Enemies.Count(enemy => enemy.Enemy.EnemyId == "miniboss_split"), "dead split mini boss removed from sandbox");
-    AssertEqual(splitBodyCount + 2, game.Enemies.Count(enemy => enemy.Enemy.EnemyId == "enemy_split_body"), "split mini boss adds two split bodies");
-}
-
-static void SandboxGameExposesBossHealthWhileBossExists()
-{
-    var game = new SandboxGame();
-    game.StartWave();
-
-    AssertFalse(game.HasBoss, "basic sandbox wave does not expose boss health");
-    AssertEqual(string.Empty, game.BossHealthText, "basic sandbox wave has no boss health text");
-
-    game.StartSplitWave();
-
-    AssertTrue(game.HasBoss, "split sandbox wave exposes boss health");
-    AssertNearly(1.0f, game.BossHealthRatio, "boss health starts full");
-    AssertTrue(game.BossHealthText.Contains("100%"), "boss health text starts at 100 percent");
-
-    var boss = game.Enemies.Single(enemy => enemy.Enemy.Category == EnemyCategory.Boss);
-    boss.Enemy.TakeDamage(boss.Enemy.MaxHp * 0.25f, DamageType.True);
-
-    AssertTrue(game.HasBoss, "damaged boss still exposes boss health");
-    AssertNearly(0.75f, game.BossHealthRatio, "boss health ratio after damage");
-    AssertTrue(game.BossHealthText.Contains("75%"), "boss health text after damage");
-}
-
-static void SandboxGameClearsBossHealthAfterBossDies()
-{
-    var game = new SandboxGame();
-    game.StartSplitWave();
-    var boss = game.Enemies.Single(enemy => enemy.Enemy.Category == EnemyCategory.Boss);
-
-    boss.Enemy.TakeDamage(boss.Enemy.CurrentHp, DamageType.True);
-    game.Tick(0);
-
-    AssertFalse(game.HasBoss, "dead boss clears boss health");
-    AssertEqual(0f, game.BossHealthRatio, "dead boss clears boss health ratio");
-    AssertEqual(string.Empty, game.BossHealthText, "dead boss clears boss health text");
 }
 
 static void SplitBossSpawnsSplitMiniBosses()

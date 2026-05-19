@@ -1,5 +1,4 @@
 using System.Windows;
-using TowerDefense.Sandbox;
 using TowerDefense.UI;
 
 namespace TowerDefense;
@@ -27,14 +26,5 @@ public partial class MainWindow : Window
         {
             _viewModel.ConfirmStageIntro();
         }
-    }
-
-    private void OpenSandbox_Click(object sender, RoutedEventArgs e)
-    {
-        var sandbox = new SandboxWindow
-        {
-            Owner = this
-        };
-        sandbox.Show();
     }
 }

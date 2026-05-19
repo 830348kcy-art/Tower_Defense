@@ -38,7 +38,7 @@
                     Padding="20">
                 <DockPanel>
                     <TextBlock DockPanel.Dock="Top"
-                               Text="신규 적"
+                               Text="New Enemies"
                                Foreground="#F5F7FA"
                                FontSize="20"
                                FontWeight="SemiBold"
@@ -81,7 +81,7 @@
                     Padding="20"
                     Margin="18,0,0,0">
                 <StackPanel>
-                    <TextBlock Text="현재 상태"
+                    <TextBlock Text="Status"
                                Foreground="#F5F7FA"
                                FontSize="20"
                                FontWeight="SemiBold" />
@@ -90,25 +90,18 @@
                                FontSize="14"
                                TextWrapping="Wrap"
                                Margin="0,14,0,22" />
-                    <Button Content="스테이지 시작"
+                    <Button Content="Start Stage"
                             Command="{Binding StartStageCommand}"
                             Height="44"
                             Background="#5CAD5C"
                             Foreground="#081008"
-                            FontWeight="Bold" />
-                    <Button Content="테스트 플레이"
-                            Height="44"
-                            Margin="0,10,0,0"
-                            Click="OpenSandbox_Click"
-                            Background="#60A5FA"
-                            Foreground="#07111F"
                             FontWeight="Bold" />
                 </StackPanel>
             </Border>
         </Grid>
 
         <TextBlock Grid.Row="2"
-                   Text="MVP: Core 연결, 스테이지 팝업, 테스트 샌드박스"
+                   Text="MVP: core rules, stage intro, enemy previews"
                    Foreground="#6F8397"
                    FontSize="12" />
     </Grid>
