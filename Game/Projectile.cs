@@ -41,7 +41,8 @@ public class Projectile
         if (Target != null && Target.Alive)
         {
             var dir = (Target.Pos - Pos).Normalized();
-            Pos = Pos + dir * Speed * dt;
+            Velocity = dir * Speed; // 타겟 추적 중 속도 벡터 갱신
+            Pos = Pos + Velocity * dt;
             if (Pos.DistanceTo(Target.Pos) < 8)
             {
                 Detonate(game, Target.Pos);
@@ -59,7 +60,8 @@ public class Projectile
     {
         if (SplashRadius > 0)
         {
-            foreach (var e in game.Enemies)
+            // 원본 리스트를 복사하여 순회함으로써 적 제거 시 발생하는 Collection Modified 오류 방지
+            foreach (var e in game.Enemies.ToArray())
             {
                 if (!e.Alive) continue;
                 if (point.DistanceTo(e.Pos) <= SplashRadius)

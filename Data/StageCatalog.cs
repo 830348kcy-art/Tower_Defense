@@ -181,7 +181,7 @@ public static class StageCatalog
 
     private static List<TowerKind> AllowedTowersFor(int n)
     {
-        var list = new List<TowerKind> { TowerKind.Archer };
+        var list = new List<TowerKind> { TowerKind.Archer, TowerKind.Slow };
         if (n >= 2) list.Add(TowerKind.Barracks);
         if (n >= 4) list.Add(TowerKind.Mage);
         if (n >= 6) list.Add(TowerKind.Bombard);
