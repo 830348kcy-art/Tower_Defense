@@ -33,8 +33,6 @@ public static class StageCatalog
         "4구역 최종 지휘관"
     };
 
-    public static readonly List<StageDef> Stages = Build();
-
     private static int ChapterFor(int stage) => ((stage - 1) / 5) + 1;
 
     private static int StageInChapter(int stage) => ((stage - 1) % 5) + 1;
@@ -71,118 +69,136 @@ public static class StageCatalog
         };
     }
 
+    private sealed record StageComposition(
+        int Normal,
+        int Fast,
+        int SplitBody,
+        int Elite,
+        int EliteCharge,
+        EnemyKind? ExtraKind = null,
+        int ExtraCount = 0,
+        EnemyKind? MidBoss = null,
+        EnemyKind? Boss = null);
+
+    private static readonly StageComposition[] StageCompositions =
+    {
+        new(4, 0, 0, 0, 0),
+        new(5, 3, 0, 0, 0),
+        new(6, 4, 2, 0, 0, MidBoss: EnemyKind.MidBossNormal),
+        new(7, 5, 2, 1, 0),
+        new(8, 6, 3, 1, 0, Boss: EnemyKind.BossNormal),
+        new(5, 3, 0, 0, 0),
+        new(6, 4, 2, 0, 0),
+        new(7, 5, 3, 1, 1, MidBoss: EnemyKind.MidBossCharge),
+        new(8, 6, 3, 2, 1),
+        new(9, 7, 4, 2, 2, Boss: EnemyKind.BossCharge),
+        new(5, 3, 0, 0, 0),
+        new(6, 4, 2, 1, 0, EnemyKind.EliteRegenerator, 1),
+        new(8, 5, 3, 1, 1, EnemyKind.EliteRegenerator, 1, EnemyKind.MidBossSplit),
+        new(9, 6, 4, 2, 1, EnemyKind.EliteRegenerator, 2),
+        new(10, 7, 4, 2, 2, EnemyKind.EliteRegenerator, 2, Boss: EnemyKind.BossSplit),
+        new(5, 3, 0, 0, 0),
+        new(7, 4, 3, 1, 1, EnemyKind.EliteGhost, 1),
+        new(9, 5, 4, 2, 2, EnemyKind.EliteGhost, 1, EnemyKind.MidBossSpeed),
+        new(10, 6, 5, 2, 2, EnemyKind.EliteGhost, 2),
+        new(12, 8, 5, 3, 3, EnemyKind.EliteGhost, 2, Boss: EnemyKind.BossSpeed)
+    };
+
+    private static readonly double[] WaveTimes = { 22, 23, 24, 25, 26, 27, 28, 30 };
+    private static readonly int[] NormalWaves = { 0, 1, 2, 7 };
+    private static readonly int[] FastWaves = { 1, 2, 5, 7 };
+    private static readonly int[] SplitWaves = { 2, 3, 7 };
+    private static readonly int[] EliteWaves = { 3, 6, 7 };
+    private static readonly int[] EliteChargeWaves = { 4, 6, 7 };
+    private static readonly int[] ExtraWaves = { 5, 7 };
+
+    public static readonly List<StageDef> Stages = Build();
+
     private static List<WaveDef> WavesFor(int stage)
     {
-        int chapter = ChapterFor(stage);
-        int stageInChapter = StageInChapter(stage);
         int pathCount = PathFor(stage).Count;
-        int pressure = stage + chapter * 2;
         double interval = Math.Max(0.35, 0.82 - stage * 0.01);
-        var waves = new List<WaveDef>();
+        var plan = StageCompositions[stage - 1];
+        var waves = CreateEmptyWaves(plan);
 
-        AddWave(waves, 22,
-            Entry(EnemyKind.Normal, 8 + pressure, interval, 0, 0));
+        Distribute(waves, EnemyKind.Normal, plan.Normal, NormalWaves, interval, pathCount);
+        Distribute(waves, EnemyKind.Fast, plan.Fast, FastWaves, interval * 0.75, pathCount);
+        Distribute(waves, EnemyKind.SplitBody, plan.SplitBody, SplitWaves, interval * 1.2, pathCount);
+        Distribute(waves, EnemyKind.Elite, plan.Elite, EliteWaves, interval * 1.6, pathCount);
+        Distribute(waves, EnemyKind.EliteCharge, plan.EliteCharge, EliteChargeWaves, interval * 1.5, pathCount);
 
-        AddWave(waves, 23,
-            Entry(EnemyKind.Normal, 7 + pressure, interval, 0, 0),
-            Entry(EnemyKind.Fast, 4 + stageInChapter, interval * 0.75, PathIndex(1, pathCount), 3));
+        if (plan.ExtraKind != null)
+            Distribute(waves, plan.ExtraKind.Value, plan.ExtraCount, ExtraWaves, interval * 1.8, pathCount);
 
-        AddWave(waves, 24,
-            Entry(EnemyKind.Fast, 7 + pressure / 2, interval * 0.7, 0, 0),
-            Entry(EnemyKind.Normal, 8 + stageInChapter, interval, PathIndex(1, pathCount), 4));
+        if (plan.MidBoss != null)
+            AddCount(waves[7], plan.MidBoss.Value, 1, 1.0, 0, 6);
 
-        AddWave(waves, 25,
-            Entry(EnemyKind.SplitBody, 2 + chapter, interval * 1.3, 0, 0),
-            Entry(EnemyKind.SplitSmall, 6 + pressure, interval * 0.6, PathIndex(1, pathCount), 2));
-
-        AddWave(waves, 26,
-            Entry(EliteForChapter(chapter), 1 + stageInChapter / 2, interval * 1.6, 0, 0),
-            Entry(EnemyKind.Normal, 8 + pressure, interval, PathIndex(1, pathCount), 3));
-
-        AddWave(waves, 27,
-            Entry(EnemyKind.SplitBody, 2 + stageInChapter, interval * 1.2, 0, 0),
-            Entry(AdvancedEliteForChapter(chapter), 1 + chapter / 2, interval * 1.8, PathIndex(1, pathCount), 5));
-
-        AddWave(waves, 28,
-            Entry(EnemyKind.Fast, 8 + pressure, interval * 0.65, 0, 0),
-            Entry(EnemyKind.EliteRegenerator, chapter >= 3 ? 2 : 1, interval * 2.0, PathIndex(1, pathCount), 4),
-            Entry(EnemyKind.EliteGhost, chapter >= 4 ? 2 : 1, interval * 2.0, 0, 7));
-
-        if (HasMidBossFor(stage))
-        {
-            AddWave(waves, 34,
-                Entry(EnemyKind.Fast, 8 + pressure, interval * 0.7, 0, 0),
-                Entry(EnemyKind.SplitBody, 2 + chapter, interval * 1.2, PathIndex(1, pathCount), 2),
-                Entry(MidBossFor(stage), 1, 1.0, 0, 6));
-        }
-        else if (HasBossFor(stage))
-        {
-            AddWave(waves, 40,
-                Entry(EnemyKind.Normal, 10 + pressure, interval, 0, 0),
-                Entry(EnemyKind.Elite, 2 + chapter, interval * 1.7, PathIndex(1, pathCount), 3),
-                Entry(BossFor(stage), 1, 1.0, 0, 8));
-        }
-        else
-        {
-            AddWave(waves, 30,
-                Entry(EnemyKind.SplitBody, 3 + chapter, interval * 1.1, 0, 0),
-                Entry(EnemyKind.EliteCharge, 2 + chapter, interval * 1.5, PathIndex(1, pathCount), 3),
-                Entry(EnemyKind.EliteGhost, 1 + chapter / 2, interval * 1.8, 0, 6));
-        }
+        if (plan.Boss != null)
+            AddCount(waves[7], plan.Boss.Value, 1, 1.0, 0, 8);
 
         return waves;
     }
 
-    private static EnemyKind EliteForChapter(int chapter) => chapter switch
+    private static List<WaveDef> CreateEmptyWaves(StageComposition plan)
     {
-        1 => EnemyKind.Elite,
-        2 => EnemyKind.EliteCharge,
-        3 => EnemyKind.EliteRegenerator,
-        _ => EnemyKind.EliteGhost
-    };
+        var waves = new List<WaveDef>();
+        for (int i = 0; i < WaveTimes.Length; i++)
+            waves.Add(new WaveDef { TimeUntilNext = WaveTimes[i] });
 
-    private static EnemyKind AdvancedEliteForChapter(int chapter) => chapter switch
-    {
-        1 => EnemyKind.EliteCharge,
-        2 => EnemyKind.EliteRegenerator,
-        3 => EnemyKind.EliteGhost,
-        _ => EnemyKind.Elite
-    };
+        if (plan.MidBoss != null) waves[7].TimeUntilNext = 34;
+        if (plan.Boss != null) waves[7].TimeUntilNext = 40;
+        return waves;
+    }
 
     private static bool HasMidBossFor(int stage) => StageInChapter(stage) == 3;
 
     private static bool HasBossFor(int stage) => StageInChapter(stage) == 5;
 
-    private static EnemyKind MidBossFor(int stage) => ChapterFor(stage) switch
+    private static void Distribute(
+        List<WaveDef> waves,
+        EnemyKind enemy,
+        int totalCount,
+        int[] targetWaves,
+        double interval,
+        int pathCount)
     {
-        1 => EnemyKind.MidBossNormal,
-        2 => EnemyKind.MidBossCharge,
-        3 => EnemyKind.MidBossSplit,
-        _ => EnemyKind.MidBossSpeed
-    };
+        if (totalCount <= 0) return;
 
-    private static EnemyKind BossFor(int stage) => ChapterFor(stage) switch
-    {
-        1 => EnemyKind.BossNormal,
-        2 => EnemyKind.BossCharge,
-        3 => EnemyKind.BossSplit,
-        _ => EnemyKind.BossSpeed
-    };
+        int baseCount = totalCount / targetWaves.Length;
+        int remainder = totalCount % targetWaves.Length;
+        for (int i = 0; i < targetWaves.Length; i++)
+        {
+            int count = baseCount + (i < remainder ? 1 : 0);
+            if (count <= 0) continue;
+            AddCount(waves[targetWaves[i]], enemy, count, interval, PathIndex(i, pathCount), i * 0.5);
+        }
+    }
 
-    private static WaveEntry Entry(EnemyKind enemy, int count, double interval, int path, double delay) => new()
+    private static void AddCount(
+        WaveDef wave,
+        EnemyKind enemy,
+        int count,
+        double interval,
+        int path,
+        double delay)
     {
-        Enemy = enemy,
-        Count = count,
-        SpawnInterval = interval,
-        SpawnPath = path,
-        InitialDelay = delay
-    };
+        if (count <= 0) return;
 
-    private static void AddWave(List<WaveDef> waves, double timeUntilNext, params WaveEntry[] entries)
-    {
-        var wave = new WaveDef { TimeUntilNext = timeUntilNext };
-        wave.Entries.AddRange(entries);
-        waves.Add(wave);
+        foreach (var entry in wave.Entries)
+        {
+            if (entry.Enemy != enemy || entry.SpawnPath != path) continue;
+            entry.Count += count;
+            return;
+        }
+
+        wave.Entries.Add(new WaveEntry
+        {
+            Enemy = enemy,
+            Count = count,
+            SpawnInterval = interval,
+            SpawnPath = path,
+            InitialDelay = delay
+        });
     }
 
     private static int PathIndex(int requested, int pathCount) => requested % Math.Max(1, pathCount);

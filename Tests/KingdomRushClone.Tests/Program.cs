@@ -26,12 +26,49 @@ internal static class Program
         EnemyKind.BossSpeed
     };
 
+    private sealed record ExpectedStageComposition(
+        int Stage,
+        int Normal,
+        int Fast,
+        int SplitBody,
+        int Elite,
+        int EliteCharge,
+        EnemyKind? ExtraKind = null,
+        int ExtraCount = 0,
+        EnemyKind? MidBoss = null,
+        EnemyKind? Boss = null);
+
+    private static readonly ExpectedStageComposition[] ExpectedStageCompositions =
+    {
+        new(1, 4, 0, 0, 0, 0),
+        new(2, 5, 3, 0, 0, 0),
+        new(3, 6, 4, 2, 0, 0, MidBoss: EnemyKind.MidBossNormal),
+        new(4, 7, 5, 2, 1, 0),
+        new(5, 8, 6, 3, 1, 0, Boss: EnemyKind.BossNormal),
+        new(6, 5, 3, 0, 0, 0),
+        new(7, 6, 4, 2, 0, 0),
+        new(8, 7, 5, 3, 1, 1, MidBoss: EnemyKind.MidBossCharge),
+        new(9, 8, 6, 3, 2, 1),
+        new(10, 9, 7, 4, 2, 2, Boss: EnemyKind.BossCharge),
+        new(11, 5, 3, 0, 0, 0),
+        new(12, 6, 4, 2, 1, 0, EnemyKind.EliteRegenerator, 1),
+        new(13, 8, 5, 3, 1, 1, EnemyKind.EliteRegenerator, 1, EnemyKind.MidBossSplit),
+        new(14, 9, 6, 4, 2, 1, EnemyKind.EliteRegenerator, 2),
+        new(15, 10, 7, 4, 2, 2, EnemyKind.EliteRegenerator, 2, Boss: EnemyKind.BossSplit),
+        new(16, 5, 3, 0, 0, 0),
+        new(17, 7, 4, 3, 1, 1, EnemyKind.EliteGhost, 1),
+        new(18, 9, 5, 4, 2, 2, EnemyKind.EliteGhost, 1, EnemyKind.MidBossSpeed),
+        new(19, 10, 6, 5, 2, 2, EnemyKind.EliteGhost, 2),
+        new(20, 12, 8, 5, 3, 3, EnemyKind.EliteGhost, 2, Boss: EnemyKind.BossSpeed)
+    };
+
     private static int Main()
     {
         var tests = new (string Name, Action Test)[]
         {
             ("enemy catalog matches sixteen asset plan", EnemyCatalogMatchesSixteenAssetPlan),
             ("stage catalog uses twenty stages and eight waves", StageCatalogUsesTwentyStagesAndEightWaves),
+            ("stage wave totals match composition table", StageWaveTotalsMatchCompositionTable),
             ("chapter boss schedule uses four role families", ChapterBossScheduleUsesFourRoleFamilies),
             ("chapter hp scale uses twenty percent steps", ChapterHpScaleUsesTwentyPercentSteps),
             ("split boss creates split mid bosses", SplitBossCreatesSplitMidBosses),
@@ -91,6 +128,38 @@ internal static class Program
             AssertEqual(8, stage.Waves.Count, $"stage {stage.Number} wave count");
             foreach (var entry in stage.Waves.SelectMany(wave => wave.Entries))
                 Assert(expected.Contains(entry.Enemy), $"stage {stage.Number} should only use planned enemy kinds");
+        }
+    }
+
+    private static void StageWaveTotalsMatchCompositionTable()
+    {
+        foreach (var expected in ExpectedStageCompositions)
+        {
+            var stage = StageCatalog.Stages.Single(s => s.Number == expected.Stage);
+            var counts = stage.Waves
+                .SelectMany(wave => wave.Entries)
+                .GroupBy(entry => entry.Enemy)
+                .ToDictionary(group => group.Key, group => group.Sum(entry => entry.Count));
+
+            AssertEnemyCount(counts, expected.Stage, EnemyKind.Normal, expected.Normal);
+            AssertEnemyCount(counts, expected.Stage, EnemyKind.Fast, expected.Fast);
+            AssertEnemyCount(counts, expected.Stage, EnemyKind.SplitBody, expected.SplitBody);
+            AssertEnemyCount(counts, expected.Stage, EnemyKind.Elite, expected.Elite);
+            AssertEnemyCount(counts, expected.Stage, EnemyKind.EliteCharge, expected.EliteCharge);
+
+            if (expected.ExtraKind != null)
+                AssertEnemyCount(counts, expected.Stage, expected.ExtraKind.Value, expected.ExtraCount);
+
+            if (expected.MidBoss != null)
+                AssertEnemyCount(counts, expected.Stage, expected.MidBoss.Value, 1);
+
+            if (expected.Boss != null)
+                AssertEnemyCount(counts, expected.Stage, expected.Boss.Value, 1);
+
+            var expectedKinds = ExpectedKindsFor(expected).ToHashSet();
+            foreach (var (kind, count) in counts)
+                if (count > 0)
+                    Assert(expectedKinds.Contains(kind), $"stage {expected.Stage} should not spawn {kind}");
         }
     }
 
@@ -179,6 +248,28 @@ internal static class Program
         AssertEqual(isMidBoss, stage.HasMidBoss, $"stage {stageNumber} mid boss flag");
         AssertEqual(isBoss, stage.HasBoss, $"stage {stageNumber} boss flag");
         AssertContains(stage, expected, $"stage {stageNumber} wave plan");
+    }
+
+    private static IEnumerable<EnemyKind> ExpectedKindsFor(ExpectedStageComposition expected)
+    {
+        if (expected.Normal > 0) yield return EnemyKind.Normal;
+        if (expected.Fast > 0) yield return EnemyKind.Fast;
+        if (expected.SplitBody > 0) yield return EnemyKind.SplitBody;
+        if (expected.Elite > 0) yield return EnemyKind.Elite;
+        if (expected.EliteCharge > 0) yield return EnemyKind.EliteCharge;
+        if (expected.ExtraKind != null && expected.ExtraCount > 0) yield return expected.ExtraKind.Value;
+        if (expected.MidBoss != null) yield return expected.MidBoss.Value;
+        if (expected.Boss != null) yield return expected.Boss.Value;
+    }
+
+    private static void AssertEnemyCount(
+        IReadOnlyDictionary<EnemyKind, int> counts,
+        int stage,
+        EnemyKind kind,
+        int expected)
+    {
+        counts.TryGetValue(kind, out var actual);
+        AssertEqual(expected, actual, $"stage {stage} {kind} count");
     }
 
     private static GameEngine CreateGame()
