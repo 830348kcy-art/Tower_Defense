@@ -173,6 +173,41 @@ public class GameEngine
         }
     }
 
+    public EnemyInstance CreateEnemy(EnemyDef def, Vec2 pos, List<Vec2> path, int waypointIndex)
+    {
+        double hpScale = Stage.EnemyHpScale * (1 - SaveManager.TechEffect(TechId.EnemyHpReduction));
+        double speedScale = Stage.EnemySpeedScale * (1 - SaveManager.TechEffect(TechId.EnemySpeedReduction));
+        double maxHp = def.MaxHp * hpScale;
+
+        return new EnemyInstance
+        {
+            Def = def,
+            Pos = pos,
+            Path = path,
+            WaypointIndex = waypointIndex,
+            MaxHp = maxHp,
+            Hp = maxHp,
+            Speed = def.Speed * speedScale,
+            Alive = true,
+            PathIndex = Stage.Paths.IndexOf(path)
+        };
+    }
+
+    private void SpawnDeathSpawns(EnemyInstance parent)
+    {
+        if (parent.Def.DeathSpawns.Count == 0) return;
+
+        double center = (parent.Def.DeathSpawns.Count - 1) / 2.0;
+        for (int i = 0; i < parent.Def.DeathSpawns.Count; i++)
+        {
+            var childDef = EnemyCatalog.Enemies[parent.Def.DeathSpawns[i]];
+            var offset = new Vec2((i - center) * Math.Max(12, childDef.Radius), 0);
+            var child = CreateEnemy(childDef, parent.Pos + offset, parent.Path, parent.WaypointIndex);
+            child.PathIndex = parent.PathIndex;
+            Enemies.Add(child);
+        }
+    }
+
     public bool TryBuild(Vec2 slot, TowerKind kind)
     {
         var def = Data.TowerCatalog.Towers[kind];
