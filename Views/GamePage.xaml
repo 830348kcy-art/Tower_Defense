@@ -10,34 +10,98 @@
             <RowDefinition Height="60"/>
         </Grid.RowDefinitions>
 
-        <!-- HUD top -->
+        <!-- ══ HUD TOP ════════════════════════════════════════════════════ -->
         <DockPanel Grid.Row="0" Background="#222831" LastChildFill="False">
-            <Button Content="◀ 메뉴" Width="80" Click="OnExit" Background="#455A64" Foreground="White" BorderThickness="0" Margin="6"/>
-            <TextBlock x:Name="StageText" Foreground="#FFD369" FontSize="16" FontWeight="Bold" VerticalAlignment="Center" Margin="12,0"/>
-            <TextBlock x:Name="GoldText" Foreground="#FFD369" FontSize="16" VerticalAlignment="Center" Margin="12,0"/>
-            <TextBlock x:Name="LivesText" Foreground="#E63946" FontSize="16" VerticalAlignment="Center" Margin="12,0"/>
-            <TextBlock x:Name="WaveText" Foreground="#EEEEEE" FontSize="16" VerticalAlignment="Center" Margin="12,0"/>
-            <Button x:Name="SpeedBtn" Content="속도: 1x" Width="80" Click="OnSpeed" Background="#3F51B5" Foreground="White" BorderThickness="0" Margin="6" DockPanel.Dock="Right"/>
-            <Button x:Name="PauseBtn" Content="일시정지" Width="80" Click="OnPause" Background="#FF9800" Foreground="White" BorderThickness="0" Margin="6" DockPanel.Dock="Right"/>
+            <Button Content="◀ 메뉴" Width="80" Click="OnExit"
+                    Background="#455A64" Foreground="White" BorderThickness="0" Margin="6"/>
+            <TextBlock x:Name="StageText"  Foreground="#FFD369" FontSize="15" FontWeight="Bold"
+                       VerticalAlignment="Center" Margin="12,0"/>
+            <TextBlock x:Name="GoldText"   Foreground="#FFD369" FontSize="15"
+                       VerticalAlignment="Center" Margin="12,0"/>
+            <TextBlock x:Name="LivesText"  Foreground="#E63946" FontSize="15"
+                       VerticalAlignment="Center" Margin="12,0"/>
+            <TextBlock x:Name="WaveText"   Foreground="#EEEEEE" FontSize="15"
+                       VerticalAlignment="Center" Margin="12,0"/>
+            <Button x:Name="SpeedBtn"  Content="속도: 1x"  Width="82" Click="OnSpeed"
+                    Background="#3F51B5" Foreground="White" BorderThickness="0"
+                    Margin="6" DockPanel.Dock="Right"/>
+            <Button x:Name="PauseBtn"  Content="일시정지"  Width="82" Click="OnPause"
+                    Background="#FF9800" Foreground="White" BorderThickness="0"
+                    Margin="6" DockPanel.Dock="Right"/>
         </DockPanel>
 
-        <!-- Game canvas -->
-        <Border Grid.Row="1" Background="#0F1419">
-            <Canvas x:Name="GameCanvas" Width="1100" Height="620" Background="#1B2733" ClipToBounds="True" MouseLeftButtonDown="OnCanvasClick"/>
-        </Border>
+        <!-- ══ GAME AREA ══════════════════════════════════════════════════ -->
+        <Grid Grid.Row="1">
+            <!-- Canvas -->
+            <Border Background="#0F1419">
+                <Canvas x:Name="GameCanvas" Width="1100" Height="620"
+                        Background="#1B2733" ClipToBounds="True"
+                        MouseLeftButtonDown="OnCanvasClick"/>
+            </Border>
 
-        <!-- Bottom skill bar -->
+            <!-- Boss HP bar (collapsed when no boss) -->
+            <Border x:Name="BossHpPanel" VerticalAlignment="Top"
+                    Background="#CC220000" Height="24"
+                    Visibility="Collapsed" IsHitTestVisible="False">
+                <DockPanel Margin="10,2">
+                    <TextBlock x:Name="BossNameText"
+                               Foreground="#FF5252" FontWeight="Bold" FontSize="13"
+                               VerticalAlignment="Center" DockPanel.Dock="Left" Margin="0,0,12,0"/>
+                    <ProgressBar x:Name="BossHpBar" Value="100" Maximum="100"
+                                 Background="#440000" BorderThickness="0"
+                                 VerticalAlignment="Center" Height="14">
+                        <ProgressBar.Foreground>
+                            <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                                <GradientStop Color="#FF1744" Offset="0"/>
+                                <GradientStop Color="#FF6D00" Offset="0.6"/>
+                                <GradientStop Color="#FFD600" Offset="1"/>
+                            </LinearGradientBrush>
+                        </ProgressBar.Foreground>
+                    </ProgressBar>
+                </DockPanel>
+            </Border>
+
+            <!-- Red flash when lives are lost -->
+            <Border x:Name="LivesFlashBorder"
+                    BorderBrush="#CCFF1744" BorderThickness="10"
+                    IsHitTestVisible="False" Visibility="Collapsed" Opacity="0"/>
+
+            <!-- Wave announcement banner -->
+            <Grid x:Name="AnnounceOverlay"
+                  IsHitTestVisible="False" Visibility="Collapsed"
+                  HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,55,0,0">
+                <Border Background="#DD000000" CornerRadius="10" Padding="36,12">
+                    <TextBlock x:Name="AnnounceText"
+                               FontSize="26" FontWeight="Bold" Foreground="#FFD369"
+                               HorizontalAlignment="Center"/>
+                </Border>
+            </Grid>
+        </Grid>
+
+        <!-- ══ BOTTOM BAR ═════════════════════════════════════════════════ -->
         <DockPanel Grid.Row="2" Background="#222831" LastChildFill="False">
-            <Button x:Name="CallWaveBtn" Content="다음 웨이브 (N)" Width="170" Click="OnCallWave" Background="#2E7D32" Foreground="White" BorderThickness="0" Margin="6"/>
-            <TextBlock x:Name="NextWaveTimer" Foreground="#AAAAAA" FontSize="14" VerticalAlignment="Center" Margin="6,0"/>
-            <Button x:Name="MeteorBtn" Content="🔥 화포 [1]" Width="140" Click="OnMeteor" Background="#D84315" Foreground="White" BorderThickness="0" Margin="6"/>
-            <Button x:Name="ReinforceBtn" Content="🛡 지원군 [2]" Width="140" Click="OnReinforce" Background="#1976D2" Foreground="White" BorderThickness="0" Margin="6"/>
-            <TextBlock x:Name="HintText" Foreground="#FFD369" FontSize="13" VerticalAlignment="Center" Margin="20,0" DockPanel.Dock="Right"/>
+            <Button x:Name="CallWaveBtn" Content="다음 웨이브  N" Width="170"
+                    Click="OnCallWave" Background="#2E7D32" Foreground="White"
+                    BorderThickness="0" Margin="6"/>
+            <TextBlock x:Name="NextWaveTimer"   Foreground="#AAAAAA" FontSize="13"
+                       VerticalAlignment="Center" Margin="6,0"/>
+            <TextBlock x:Name="NextWavePreview" Foreground="#88CCFF" FontSize="12"
+                       VerticalAlignment="Center" Margin="6,0"/>
+            <Button x:Name="MeteorBtn"    Content="🔥 화포 [1]"   Width="140"
+                    Click="OnMeteor"    Background="#D84315" Foreground="White"
+                    BorderThickness="0" Margin="6"/>
+            <Button x:Name="ReinforceBtn" Content="🛡 지원군 [2]" Width="140"
+                    Click="OnReinforce" Background="#1976D2" Foreground="White"
+                    BorderThickness="0" Margin="6"/>
+            <TextBlock x:Name="HintText" Foreground="#FFD369" FontSize="13"
+                       VerticalAlignment="Center" Margin="20,0"
+                       DockPanel.Dock="Right"/>
         </DockPanel>
 
-        <!-- Overlay (popups, tutorial, end screen) -->
+        <!-- ══ OVERLAY (build / upgrade / tutorial / result) ════════════ -->
         <Grid x:Name="Overlay" Grid.Row="1" Background="#88000000" Visibility="Collapsed">
-            <ContentControl x:Name="OverlayContent" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+            <ContentControl x:Name="OverlayContent"
+                            HorizontalAlignment="Center" VerticalAlignment="Center"/>
         </Grid>
     </Grid>
 </Page>

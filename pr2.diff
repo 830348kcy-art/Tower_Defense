@@ -1,0 +1,889 @@
+diff --git a/Data/EnemyCatalog.cs b/Data/EnemyCatalog.cs
+index 15409f4..2e4d58a 100644
+--- a/Data/EnemyCatalog.cs
++++ b/Data/EnemyCatalog.cs
+@@ -19,6 +19,19 @@ public static class EnemyCatalog
+             MaxHp = 25, Speed = 95, Armor = ArmorType.None, PhysicalResist = 0.0, MagicResist = 0.0,
+             GoldReward = 5, ColorHex = "#AED581", Radius = 9, SlowImmune = true
+         }},
++        { EnemyKind.SplitBody, new EnemyDef
++        {
++            Kind = EnemyKind.SplitBody, Name = "Split Body",
++            MaxHp = 110, Speed = 48, Armor = ArmorType.Light, PhysicalResist = 0.1, MagicResist = 0.0,
++            GoldReward = 10, ColorHex = "#84CC16", Radius = 14,
++            DeathSpawns = { EnemyKind.SplitSmall, EnemyKind.SplitSmall, EnemyKind.SplitSmall }
++        }},
++        { EnemyKind.SplitSmall, new EnemyDef
++        {
++            Kind = EnemyKind.SplitSmall, Name = "Split Small",
++            MaxHp = 35, Speed = 72, Armor = ArmorType.None, PhysicalResist = 0.0, MagicResist = 0.0,
++            GoldReward = 3, ColorHex = "#BEF264", Radius = 8
++        }},
+         { EnemyKind.OrcWarrior, new EnemyDef
+         {
+             Kind = EnemyKind.OrcWarrior, Name = "오크 전사",
+@@ -44,6 +57,20 @@ public static class EnemyCatalog
+             MaxHp = 260, Speed = 45, Armor = ArmorType.Heavy, PhysicalResist = 0.5, MagicResist = 0.15,
+             GoldReward = 28, ColorHex = "#263238", Radius = 14, LivesCost = 2
+         }},
++        { EnemyKind.SplitMidBoss, new EnemyDef
++        {
++            Kind = EnemyKind.SplitMidBoss, Name = "Split Mid Boss",
++            MaxHp = 1500, Speed = 30, Armor = ArmorType.Heavy, PhysicalResist = 0.35, MagicResist = 0.15,
++            GoldReward = 180, ColorHex = "#F97316", Radius = 22, LivesCost = 5, IsMidBoss = true,
++            DeathSpawns = { EnemyKind.SplitBody, EnemyKind.SplitBody }
++        }},
++        { EnemyKind.SplitBoss, new EnemyDef
++        {
++            Kind = EnemyKind.SplitBoss, Name = "Split Boss",
++            MaxHp = 4000, Speed = 28, Armor = ArmorType.Heavy, PhysicalResist = 0.45, MagicResist = 0.25,
++            GoldReward = 500, ColorHex = "#DC2626", Radius = 28, LivesCost = 10, IsBoss = true,
++            DeathSpawns = { EnemyKind.SplitMidBoss, EnemyKind.SplitMidBoss }
++        }},
+         { EnemyKind.MidBoss, new EnemyDef
+         {
+             Kind = EnemyKind.MidBoss, Name = "중간 보스",
+diff --git a/Data/StageCatalog.cs b/Data/StageCatalog.cs
+index f3ce9c3..d57bfd9 100644
+--- a/Data/StageCatalog.cs
++++ b/Data/StageCatalog.cs
+@@ -97,8 +97,8 @@ private static List<WaveDef> WavesFor(int stage)
+         var rand = new Random(stage * 7919);
+         int waveCount = stage switch { <= 5 => 4, <= 10 => 6, <= 15 => 7, <= 20 => 8, <= 25 => 9, _ => 10 };
+         var waves = new List<WaveDef>();
+-        bool hasMid = stage % 5 == 0 && stage % 10 != 0;
+-        bool hasBoss = stage % 10 == 0;
++        bool hasMid = HasMidBossFor(stage);
++        bool hasBoss = HasBossFor(stage);
+         int pathCount = PathFor(stage).Count;
+ 
+         for (int w = 0; w < waveCount; w++)
+@@ -138,19 +138,27 @@ private static List<WaveDef> WavesFor(int stage)
+         {
+             var bossWave = new WaveDef { TimeUntilNext = 30 };
+             bossWave.Entries.Add(new WaveEntry { Enemy = EnemyKind.GoblinSoldier, Count = 4, SpawnInterval = 0.6, SpawnPath = 0 });
+-            bossWave.Entries.Add(new WaveEntry { Enemy = EnemyKind.MidBoss, Count = 1, InitialDelay = 3, SpawnPath = 0 });
++            bossWave.Entries.Add(new WaveEntry { Enemy = MidBossFor(stage), Count = 1, InitialDelay = 3, SpawnPath = 0 });
+             waves.Add(bossWave);
+         }
+         if (hasBoss)
+         {
+             var bossWave = new WaveDef { TimeUntilNext = 30 };
+             bossWave.Entries.Add(new WaveEntry { Enemy = EnemyKind.OrcWarrior, Count = 6, SpawnInterval = 0.7, SpawnPath = 0 });
+-            bossWave.Entries.Add(new WaveEntry { Enemy = EnemyKind.Boss, Count = 1, InitialDelay = 4, SpawnPath = 0 });
++            bossWave.Entries.Add(new WaveEntry { Enemy = BossFor(stage), Count = 1, InitialDelay = 4, SpawnPath = 0 });
+             waves.Add(bossWave);
+         }
+         return waves;
+     }
+ 
++    private static bool HasMidBossFor(int stage) => stage == 13 || (stage % 5 == 0 && stage % 10 != 0 && stage != 15);
++
++    private static bool HasBossFor(int stage) => stage == 15 || stage % 10 == 0;
++
++    private static EnemyKind MidBossFor(int stage) => stage == 13 ? EnemyKind.SplitMidBoss : EnemyKind.MidBoss;
++
++    private static EnemyKind BossFor(int stage) => stage == 15 ? EnemyKind.SplitBoss : EnemyKind.Boss;
++
+     private static List<StageDef> Build()
+     {
+         var list = new List<StageDef>();
+@@ -168,8 +176,8 @@ private static List<StageDef> Build()
+                 BuildSlots = BuildSlotsAround(paths),
+                 Waves = WavesFor(n),
+                 AllowedTowers = AllowedTowersFor(n),
+-                HasMidBoss = n % 5 == 0 && n % 10 != 0,
+-                HasBoss = n % 10 == 0,
++                HasMidBoss = HasMidBossFor(n),
++                HasBoss = HasBossFor(n),
+                 EnemyHpScale = 1.0 + (n - 1) * 0.10,
+                 EnemySpeedScale = 1.0 + (n - 1) * 0.015,
+                 Effects = EffectsFor(n),
+diff --git a/Game/GameEngine.cs b/Game/GameEngine.cs
+index e16a50f..1a634cd 100644
+--- a/Game/GameEngine.cs
++++ b/Game/GameEngine.cs
+@@ -1,5 +1,6 @@
+ using System;
+ using System.Collections.Generic;
++using KingdomRushClone.Data;
+ using KingdomRushClone.Managers;
+ using KingdomRushClone.Models;
+ 
+@@ -102,6 +103,7 @@ public void Tick(double dt)
+             {
+                 Gold += e.Def.GoldReward + (int)SaveManager.TechEffect(TechId.KillGoldBonus);
+                 if (e.EngagedBy != null) e.EngagedBy = null;
++                SpawnDeathSpawns(e);
+                 Enemies.RemoveAt(i);
+             }
+         }
+@@ -119,6 +121,41 @@ public void Tick(double dt)
+         StateChanged?.Invoke();
+     }
+ 
++    public EnemyInstance CreateEnemy(EnemyDef def, Vec2 pos, List<Vec2> path, int waypointIndex)
++    {
++        double hpScale = Stage.EnemyHpScale * (1 - SaveManager.TechEffect(TechId.EnemyHpReduction));
++        double speedScale = Stage.EnemySpeedScale * (1 - SaveManager.TechEffect(TechId.EnemySpeedReduction));
++        double maxHp = def.MaxHp * hpScale;
++
++        return new EnemyInstance
++        {
++            Def = def,
++            Pos = pos,
++            Path = path,
++            WaypointIndex = waypointIndex,
++            MaxHp = maxHp,
++            Hp = maxHp,
++            Speed = def.Speed * speedScale,
++            Alive = true,
++            PathIndex = Stage.Paths.IndexOf(path)
++        };
++    }
++
++    private void SpawnDeathSpawns(EnemyInstance parent)
++    {
++        if (parent.Def.DeathSpawns.Count == 0) return;
++
++        double center = (parent.Def.DeathSpawns.Count - 1) / 2.0;
++        for (int i = 0; i < parent.Def.DeathSpawns.Count; i++)
++        {
++            var childDef = EnemyCatalog.Enemies[parent.Def.DeathSpawns[i]];
++            var offset = new Vec2((i - center) * Math.Max(12, childDef.Radius), 0);
++            var child = CreateEnemy(childDef, parent.Pos + offset, parent.Path, parent.WaypointIndex);
++            child.PathIndex = parent.PathIndex;
++            Enemies.Add(child);
++        }
++    }
++
+     public bool TryBuild(Vec2 slot, TowerKind kind)
+     {
+         var def = Data.TowerCatalog.Towers[kind];
+diff --git a/Game/WaveSpawner.cs b/Game/WaveSpawner.cs
+index eb2e31d..ad15365 100644
+--- a/Game/WaveSpawner.cs
++++ b/Game/WaveSpawner.cs
+@@ -1,6 +1,5 @@
+ using System.Collections.Generic;
+ using KingdomRushClone.Data;
+-using KingdomRushClone.Managers;
+ using KingdomRushClone.Models;
+ 
+ namespace KingdomRushClone.Game;
+@@ -83,20 +82,8 @@ private void StartNextWave(bool earlyCall)
+     private void SpawnOne(WaveEntry entry)
+     {
+         var def = EnemyCatalog.Enemies[entry.Enemy];
+-        double hpScale = _stage.EnemyHpScale * (1 - SaveManager.TechEffect(TechId.EnemyHpReduction));
+-        double speedScale = _stage.EnemySpeedScale * (1 - SaveManager.TechEffect(TechId.EnemySpeedReduction));
+         var path = _stage.Paths[entry.SpawnPath % _stage.Paths.Count];
+-        var enemy = new EnemyInstance
+-        {
+-            Def = def,
+-            Pos = path[0],
+-            Path = path,
+-            WaypointIndex = 0,
+-            MaxHp = def.MaxHp * hpScale,
+-            Hp = def.MaxHp * hpScale,
+-            Speed = def.Speed * speedScale,
+-            Alive = true
+-        };
++        var enemy = _engine.CreateEnemy(def, path[0], path, 0);
+         _engine.Enemies.Add(enemy);
+     }
+ }
+diff --git a/KingdomRushClone.csproj b/KingdomRushClone.csproj
+index b21c001..1b81911 100644
+--- a/KingdomRushClone.csproj
++++ b/KingdomRushClone.csproj
+@@ -9,4 +9,7 @@
+     <AssemblyName>KingdomRushClone</AssemblyName>
+     <LangVersion>latest</LangVersion>
+   </PropertyGroup>
++  <ItemGroup>
++    <Compile Remove="Tests\**\*.cs" />
++  </ItemGroup>
+ </Project>
+diff --git a/KingdomRushClone.sln b/KingdomRushClone.sln
+index 3c87e7b..6e41278 100644
+--- a/KingdomRushClone.sln
++++ b/KingdomRushClone.sln
+@@ -1,23 +1,55 @@
++﻿
+ Microsoft Visual Studio Solution File, Format Version 12.00
+ # Visual Studio Version 17
+ VisualStudioVersion = 17.5.2.0
+ MinimumVisualStudioVersion = 10.0.40219.1
+ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "KingdomRushClone", "KingdomRushClone.csproj", "{9475495A-CFCB-799E-1A49-F73BD97B407C}"
+ EndProject
++Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Tests", "Tests", "{0AB3BF05-4346-4AA6-1389-037BE0695223}"
++EndProject
++Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "KingdomRushClone.Tests", "Tests\KingdomRushClone.Tests\KingdomRushClone.Tests.csproj", "{5BACEDAD-18C2-4EA3-860E-2A2F7AFFC231}"
++EndProject
+ Global
+ 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+ 		Debug|Any CPU = Debug|Any CPU
++		Debug|x64 = Debug|x64
++		Debug|x86 = Debug|x86
+ 		Release|Any CPU = Release|Any CPU
++		Release|x64 = Release|x64
++		Release|x86 = Release|x86
+ 	EndGlobalSection
+ 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+ 		{9475495A-CFCB-799E-1A49-F73BD97B407C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+ 		{9475495A-CFCB-799E-1A49-F73BD97B407C}.Debug|Any CPU.Build.0 = Debug|Any CPU
++		{9475495A-CFCB-799E-1A49-F73BD97B407C}.Debug|x64.ActiveCfg = Debug|Any CPU
++		{9475495A-CFCB-799E-1A49-F73BD97B407C}.Debug|x64.Build.0 = Debug|Any CPU
++		{9475495A-CFCB-799E-1A49-F73BD97B407C}.Debug|x86.ActiveCfg = Debug|Any CPU
++		{9475495A-CFCB-799E-1A49-F73BD97B407C}.Debug|x86.Build.0 = Debug|Any CPU
+ 		{9475495A-CFCB-799E-1A49-F73BD97B407C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+ 		{9475495A-CFCB-799E-1A49-F73BD97B407C}.Release|Any CPU.Build.0 = Release|Any CPU
++		{9475495A-CFCB-799E-1A49-F73BD97B407C}.Release|x64.ActiveCfg = Release|Any CPU
++		{9475495A-CFCB-799E-1A49-F73BD97B407C}.Release|x64.Build.0 = Release|Any CPU
++		{9475495A-CFCB-799E-1A49-F73BD97B407C}.Release|x86.ActiveCfg = Release|Any CPU
++		{9475495A-CFCB-799E-1A49-F73BD97B407C}.Release|x86.Build.0 = Release|Any CPU
++		{5BACEDAD-18C2-4EA3-860E-2A2F7AFFC231}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
++		{5BACEDAD-18C2-4EA3-860E-2A2F7AFFC231}.Debug|Any CPU.Build.0 = Debug|Any CPU
++		{5BACEDAD-18C2-4EA3-860E-2A2F7AFFC231}.Debug|x64.ActiveCfg = Debug|Any CPU
++		{5BACEDAD-18C2-4EA3-860E-2A2F7AFFC231}.Debug|x64.Build.0 = Debug|Any CPU
++		{5BACEDAD-18C2-4EA3-860E-2A2F7AFFC231}.Debug|x86.ActiveCfg = Debug|Any CPU
++		{5BACEDAD-18C2-4EA3-860E-2A2F7AFFC231}.Debug|x86.Build.0 = Debug|Any CPU
++		{5BACEDAD-18C2-4EA3-860E-2A2F7AFFC231}.Release|Any CPU.ActiveCfg = Release|Any CPU
++		{5BACEDAD-18C2-4EA3-860E-2A2F7AFFC231}.Release|Any CPU.Build.0 = Release|Any CPU
++		{5BACEDAD-18C2-4EA3-860E-2A2F7AFFC231}.Release|x64.ActiveCfg = Release|Any CPU
++		{5BACEDAD-18C2-4EA3-860E-2A2F7AFFC231}.Release|x64.Build.0 = Release|Any CPU
++		{5BACEDAD-18C2-4EA3-860E-2A2F7AFFC231}.Release|x86.ActiveCfg = Release|Any CPU
++		{5BACEDAD-18C2-4EA3-860E-2A2F7AFFC231}.Release|x86.Build.0 = Release|Any CPU
+ 	EndGlobalSection
+ 	GlobalSection(SolutionProperties) = preSolution
+ 		HideSolutionNode = FALSE
+ 	EndGlobalSection
++	GlobalSection(NestedProjects) = preSolution
++		{5BACEDAD-18C2-4EA3-860E-2A2F7AFFC231} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
++	EndGlobalSection
+ 	GlobalSection(ExtensibilityGlobals) = postSolution
+ 		SolutionGuid = {22B61769-F9B7-41F2-86E9-E3A8397E0491}
+ 	EndGlobalSection
+diff --git a/Models/Common.cs b/Models/Common.cs
+index ca7cbc2..8ee3e71 100644
+--- a/Models/Common.cs
++++ b/Models/Common.cs
+@@ -35,7 +35,11 @@ public enum EnemyKind
+     TrollShaman,
+     DarkKnight,
+     MidBoss,
+-    Boss
++    Boss,
++    SplitBody,
++    SplitSmall,
++    SplitMidBoss,
++    SplitBoss
+ }
+ 
+ public enum GameSpeed { Paused = 0, Normal = 1, Fast = 2 }
+diff --git a/Models/EnemyDef.cs b/Models/EnemyDef.cs
+index 2441648..cacfbab 100644
+--- a/Models/EnemyDef.cs
++++ b/Models/EnemyDef.cs
+@@ -1,3 +1,5 @@
++using System.Collections.Generic;
++
+ namespace KingdomRushClone.Models;
+ 
+ public class EnemyDef
+@@ -19,6 +21,7 @@ public class EnemyDef
+     public double HealAmount;
+     public double HealInterval;
+     public double HealRadius;
++    public List<EnemyKind> DeathSpawns = new();
+     public bool IsBoss;
+     public bool IsMidBoss;
+ }
+diff --git a/Tests/KingdomRushClone.Tests/KingdomRushClone.Tests.csproj b/Tests/KingdomRushClone.Tests/KingdomRushClone.Tests.csproj
+new file mode 100644
+index 0000000..b9c7c46
+--- /dev/null
++++ b/Tests/KingdomRushClone.Tests/KingdomRushClone.Tests.csproj
+@@ -0,0 +1,11 @@
++<Project Sdk="Microsoft.NET.Sdk">
++  <PropertyGroup>
++    <OutputType>Exe</OutputType>
++    <TargetFramework>net8.0-windows</TargetFramework>
++    <Nullable>enable</Nullable>
++    <ImplicitUsings>enable</ImplicitUsings>
++  </PropertyGroup>
++  <ItemGroup>
++    <ProjectReference Include="..\..\KingdomRushClone.csproj" />
++  </ItemGroup>
++</Project>
+diff --git a/Tests/KingdomRushClone.Tests/Program.cs b/Tests/KingdomRushClone.Tests/Program.cs
+new file mode 100644
+index 0000000..d129dff
+--- /dev/null
++++ b/Tests/KingdomRushClone.Tests/Program.cs
+@@ -0,0 +1,139 @@
++using KingdomRushClone.Data;
++using KingdomRushClone.Game;
++using KingdomRushClone.Models;
++
++namespace KingdomRushClone.Tests;
++
++internal static class Program
++{
++    private static int Main()
++    {
++        var tests = new (string Name, Action Test)[]
++        {
++            ("split boss creates split mid bosses", SplitBossCreatesSplitMidBosses),
++            ("split mid boss creates split bodies", SplitMidBossCreatesSplitBodies),
++            ("split body creates split small enemies", SplitBodyCreatesSplitSmallEnemies),
++            ("chapter 3 stages use split mid boss and split boss", Chapter3UsesSplitEnemies)
++        };
++
++        var failures = 0;
++        foreach (var (name, test) in tests)
++        {
++            try
++            {
++                test();
++                Console.WriteLine($"PASS {name}");
++            }
++            catch (Exception ex)
++            {
++                failures++;
++                Console.WriteLine($"FAIL {name}: {ex.Message}");
++            }
++        }
++
++        return failures == 0 ? 0 : 1;
++    }
++
++    private static void SplitBossCreatesSplitMidBosses()
++    {
++        var game = CreateGame();
++        var boss = CreateEnemy(game, EnemyKind.SplitBoss);
++        KillAndTick(game, boss);
++
++        AssertEqual(2, game.Enemies.Count, "split boss child count");
++        AssertAllKind(game, EnemyKind.SplitMidBoss);
++    }
++
++    private static void SplitMidBossCreatesSplitBodies()
++    {
++        var game = CreateGame();
++        var midBoss = CreateEnemy(game, EnemyKind.SplitMidBoss);
++        KillAndTick(game, midBoss);
++
++        AssertEqual(2, game.Enemies.Count, "split mid boss child count");
++        AssertAllKind(game, EnemyKind.SplitBody);
++    }
++
++    private static void SplitBodyCreatesSplitSmallEnemies()
++    {
++        var game = CreateGame();
++        var splitBody = CreateEnemy(game, EnemyKind.SplitBody);
++        KillAndTick(game, splitBody);
++
++        AssertEqual(3, game.Enemies.Count, "split body child count");
++        AssertAllKind(game, EnemyKind.SplitSmall);
++    }
++
++    private static void Chapter3UsesSplitEnemies()
++    {
++        var stage13 = StageCatalog.Stages.Single(s => s.Number == 13);
++        var stage15 = StageCatalog.Stages.Single(s => s.Number == 15);
++
++        AssertContains(stage13, EnemyKind.SplitMidBoss, "stage 13 wave plan");
++        AssertContains(stage15, EnemyKind.SplitBoss, "stage 15 wave plan");
++    }
++
++    private static GameEngine CreateGame()
++    {
++        var stage = new StageDef
++        {
++            Number = 99,
++            Name = "Test",
++            StartingGold = 0,
++            StartingLives = 20,
++            Paths = { new List<Vec2> { new(0, 0), new(200, 0) } },
++            EnemyHpScale = 1.0,
++            EnemySpeedScale = 1.0
++        };
++
++        return new GameEngine(stage);
++    }
++
++    private static EnemyInstance CreateEnemy(GameEngine game, EnemyKind kind)
++    {
++        var def = EnemyCatalog.Enemies[kind];
++        var enemy = game.CreateEnemy(def, new Vec2(40, 0), game.Stage.Paths[0], 0);
++        game.Enemies.Add(enemy);
++        return enemy;
++    }
++
++    private static void KillAndTick(GameEngine game, EnemyInstance enemy)
++    {
++        enemy.ApplyDamage(enemy.MaxHp + 1000, DamageType.True);
++        game.Tick(0.01);
++    }
++
++    private static void AssertAllKind(GameEngine game, EnemyKind kind)
++    {
++        foreach (var enemy in game.Enemies)
++        {
++            AssertEqual(kind, enemy.Def.Kind, "child kind");
++            Assert(enemy.Alive, "child should be alive");
++            AssertEqual(game.Stage.Paths[0], enemy.Path, "child path");
++        }
++    }
++
++    private static void AssertContains(StageDef stage, EnemyKind kind, string label)
++    {
++        var contains = stage.Waves
++            .SelectMany(wave => wave.Entries)
++            .Any(entry => entry.Enemy == kind);
++        Assert(contains, $"{label} should include {kind}");
++    }
++
++    private static void Assert(bool condition, string message)
++    {
++        if (!condition)
++        {
++            throw new InvalidOperationException(message);
++        }
++    }
++
++    private static void AssertEqual<T>(T expected, T actual, string label)
++    {
++        if (!EqualityComparer<T>.Default.Equals(expected, actual))
++        {
++            throw new InvalidOperationException($"{label}: expected {expected}, got {actual}");
++        }
++    }
++}
+diff --git a/Views/EnemyFallbackImageFactory.cs b/Views/EnemyFallbackImageFactory.cs
+new file mode 100644
+index 0000000..3dfc7f4
+--- /dev/null
++++ b/Views/EnemyFallbackImageFactory.cs
+@@ -0,0 +1,232 @@
++using System.Collections.Generic;
++using System.Windows;
++using System.Windows.Media;
++using KingdomRushClone.Models;
++
++namespace KingdomRushClone.Views;
++
++public static class EnemyFallbackImageFactory
++{
++    private static readonly object CacheLock = new();
++    private static readonly Dictionary<string, ImageSource> Cache = new();
++
++    private static readonly Color NormalColor = Color.FromRgb(34, 197, 94);
++    private static readonly Color FastColor = Color.FromRgb(14, 165, 233);
++    private static readonly Color SplitColor = Color.FromRgb(132, 204, 22);
++    private static readonly Color HeavyColor = Color.FromRgb(85, 139, 47);
++    private static readonly Color FlyingColor = Color.FromRgb(144, 164, 174);
++    private static readonly Color MagicColor = Color.FromRgb(106, 27, 154);
++    private static readonly Color KnightColor = Color.FromRgb(38, 50, 56);
++    private static readonly Color MiniBossColor = Color.FromRgb(249, 115, 22);
++    private static readonly Color BossColor = Color.FromRgb(220, 38, 38);
++    private static readonly Color InkColor = Color.FromRgb(15, 23, 42);
++    private static readonly Color ShineColor = Color.FromArgb(130, 255, 255, 255);
++
++    public static ImageSource CreateIcon(EnemyKind kind)
++    {
++        return Create(kind, includeBackground: true);
++    }
++
++    public static ImageSource CreateSprite(EnemyKind kind)
++    {
++        return Create(kind, includeBackground: false);
++    }
++
++    private static ImageSource Create(EnemyKind kind, bool includeBackground)
++    {
++        var cacheKey = includeBackground ? $"icon:{kind}" : $"sprite:{kind}";
++        lock (CacheLock)
++        {
++            if (Cache.TryGetValue(cacheKey, out var cached))
++            {
++                return cached;
++            }
++        }
++
++        var drawing = new DrawingGroup();
++        using (var context = drawing.Open())
++        {
++            if (includeBackground)
++            {
++                DrawBackground(context);
++            }
++
++            DrawEnemy(context, kind);
++        }
++
++        drawing.Freeze();
++        var image = new DrawingImage(drawing);
++        image.Freeze();
++
++        lock (CacheLock)
++        {
++            Cache[cacheKey] = image;
++        }
++
++        return image;
++    }
++
++    private static void DrawBackground(DrawingContext context)
++    {
++        context.DrawRoundedRectangle(
++            Brush(Color.FromRgb(239, 246, 255)),
++            Pen(Color.FromRgb(191, 219, 254), 2),
++            new Rect(2, 2, 76, 76),
++            10,
++            10);
++    }
++
++    private static void DrawEnemy(DrawingContext context, EnemyKind kind)
++    {
++        switch (kind)
++        {
++            case EnemyKind.GoblinScout:
++                DrawFast(context);
++                return;
++            case EnemyKind.SplitBody:
++                DrawSplit(context, SplitColor, 17, 14, true);
++                return;
++            case EnemyKind.SplitSmall:
++                DrawSplit(context, SplitColor, 12, 10, false);
++                return;
++            case EnemyKind.OrcWarrior:
++                DrawHeavy(context);
++                return;
++            case EnemyKind.Wyvern:
++                DrawFlying(context);
++                return;
++            case EnemyKind.TrollShaman:
++                DrawMagic(context);
++                DrawRegenMark(context);
++                return;
++            case EnemyKind.DarkKnight:
++                DrawKnight(context);
++                return;
++            case EnemyKind.MidBoss:
++                DrawMiniBoss(context, Color.FromRgb(216, 67, 21));
++                DrawCrownMark(context, Color.FromRgb(216, 67, 21));
++                return;
++            case EnemyKind.SplitMidBoss:
++                DrawSplit(context, MiniBossColor, 20, 17, true);
++                DrawMiniBossBadge(context);
++                return;
++            case EnemyKind.Boss:
++                DrawBoss(context, Color.FromRgb(74, 20, 140));
++                DrawCrownMark(context, Color.FromRgb(74, 20, 140));
++                return;
++            case EnemyKind.SplitBoss:
++                DrawSplit(context, BossColor, 25, 21, true);
++                DrawBossBadge(context);
++                return;
++            default:
++                DrawNormal(context);
++                return;
++        }
++    }
++
++    private static void DrawNormal(DrawingContext context)
++    {
++        context.DrawEllipse(Brush(NormalColor), Pen(InkColor, 2), new Point(40, 43), 21, 18);
++        context.DrawEllipse(Brush(ShineColor), null, new Point(33, 36), 5, 5);
++        context.DrawEllipse(Brush(Color.FromRgb(22, 101, 52)), null, new Point(48, 45), 3, 3);
++    }
++
++    private static void DrawFast(DrawingContext context)
++    {
++        var body = Geometry.Parse("M 23 58 L 60 40 L 23 22 Z");
++        context.DrawGeometry(Brush(FastColor), Pen(InkColor, 2), body);
++        context.DrawLine(Pen(Color.FromRgb(2, 132, 199), 3), new Point(14, 30), new Point(31, 30));
++        context.DrawLine(Pen(Color.FromRgb(2, 132, 199), 3), new Point(11, 43), new Point(28, 43));
++        context.DrawEllipse(Brush(ShineColor), null, new Point(35, 38), 4, 4);
++    }
++
++    private static void DrawSplit(DrawingContext context, Color color, double leftRadius, double rightRadius, bool crack)
++    {
++        context.DrawEllipse(Brush(color), Pen(InkColor, 2), new Point(34, 43), leftRadius, leftRadius + 2);
++        context.DrawEllipse(Brush(color), Pen(InkColor, 2), new Point(51, 40), rightRadius, rightRadius + 2);
++        context.DrawEllipse(Brush(ShineColor), null, new Point(29, 35), 4, 4);
++
++        if (crack)
++        {
++            context.DrawLine(Pen(Color.FromRgb(120, 53, 15), 2), new Point(40, 24), new Point(43, 38));
++            context.DrawLine(Pen(Color.FromRgb(120, 53, 15), 2), new Point(43, 38), new Point(39, 56));
++        }
++    }
++
++    private static void DrawHeavy(DrawingContext context)
++    {
++        context.DrawRoundedRectangle(Brush(HeavyColor), Pen(InkColor, 2), new Rect(22, 19, 37, 48), 13, 13);
++        context.DrawRectangle(Brush(Color.FromArgb(120, 255, 255, 255)), null, new Rect(29, 25, 24, 7));
++        context.DrawEllipse(Brush(ShineColor), null, new Point(35, 37), 4, 4);
++    }
++
++    private static void DrawFlying(DrawingContext context)
++    {
++        var wingLeft = Geometry.Parse("M 39 39 L 12 24 L 24 48 Z");
++        var wingRight = Geometry.Parse("M 42 39 L 68 24 L 56 48 Z");
++        context.DrawGeometry(Brush(Color.FromRgb(203, 213, 225)), Pen(InkColor, 1.5), wingLeft);
++        context.DrawGeometry(Brush(Color.FromRgb(203, 213, 225)), Pen(InkColor, 1.5), wingRight);
++        context.DrawEllipse(Brush(FlyingColor), Pen(InkColor, 2), new Point(40, 42), 14, 20);
++        context.DrawEllipse(Brush(ShineColor), null, new Point(35, 32), 4, 4);
++    }
++
++    private static void DrawMagic(DrawingContext context)
++    {
++        context.DrawEllipse(Brush(MagicColor), Pen(InkColor, 2), new Point(40, 43), 20, 21);
++        context.DrawEllipse(Brush(ShineColor), null, new Point(33, 35), 5, 5);
++    }
++
++    private static void DrawKnight(DrawingContext context)
++    {
++        context.DrawRoundedRectangle(Brush(KnightColor), Pen(Color.FromRgb(226, 232, 240), 2), new Rect(23, 17, 34, 51), 10, 10);
++        context.DrawLine(Pen(Color.FromRgb(148, 163, 184), 4), new Point(29, 32), new Point(51, 32));
++        context.DrawLine(Pen(Color.FromRgb(148, 163, 184), 4), new Point(31, 47), new Point(49, 47));
++    }
++
++    private static void DrawMiniBoss(DrawingContext context, Color color)
++    {
++        context.DrawEllipse(Brush(color), Pen(InkColor, 2), new Point(40, 43), 23, 21);
++        context.DrawRectangle(Brush(Color.FromArgb(115, 255, 255, 255)), null, new Rect(27, 24, 26, 7));
++        context.DrawEllipse(Brush(ShineColor), null, new Point(32, 35), 4, 4);
++    }
++
++    private static void DrawBoss(DrawingContext context, Color color)
++    {
++        context.DrawEllipse(Brush(color), Pen(InkColor, 2), new Point(40, 43), 28, 25);
++        context.DrawRectangle(Brush(Color.FromArgb(110, 255, 255, 255)), null, new Rect(23, 20, 34, 8));
++        context.DrawEllipse(Brush(Color.FromArgb(120, 255, 255, 255)), null, new Point(31, 34), 5, 5);
++    }
++
++    private static void DrawRegenMark(DrawingContext context)
++    {
++        context.DrawRectangle(Brush(Color.FromRgb(187, 247, 208)), null, new Rect(36, 28, 8, 27));
++        context.DrawRectangle(Brush(Color.FromRgb(187, 247, 208)), null, new Rect(27, 37, 26, 8));
++    }
++
++    private static void DrawCrownMark(DrawingContext context, Color color)
++    {
++        var crown = Geometry.Parse("M 26 25 L 33 15 L 40 25 L 48 15 L 55 25 L 55 31 L 26 31 Z");
++        context.DrawGeometry(Brush(Color.FromRgb(250, 204, 21)), Pen(Color.FromRgb(120, 53, 15), 1.5), crown);
++        context.DrawEllipse(Brush(color), null, new Point(40, 29), 3, 3);
++    }
++
++    private static void DrawMiniBossBadge(DrawingContext context)
++    {
++        context.DrawRectangle(Brush(Color.FromRgb(254, 215, 170)), null, new Rect(31, 19, 18, 6));
++    }
++
++    private static void DrawBossBadge(DrawingContext context)
++    {
++        context.DrawRectangle(Brush(Color.FromRgb(254, 202, 202)), null, new Rect(27, 17, 26, 7));
++    }
++
++    private static Brush Brush(Color color)
++    {
++        return new SolidColorBrush(color);
++    }
++
++    private static Pen Pen(Color color, double thickness)
++    {
++        return new Pen(Brush(color), thickness);
++    }
++}
+diff --git a/Views/GamePage.xaml b/Views/GamePage.xaml
+index 8877c2b..0c86df6 100644
+--- a/Views/GamePage.xaml
++++ b/Views/GamePage.xaml
+@@ -26,6 +26,20 @@
+             <Canvas x:Name="GameCanvas" Width="1100" Height="620" Background="#1B2733" ClipToBounds="True" MouseLeftButtonDown="OnCanvasClick"/>
+         </Border>
+ 
++        <Border x:Name="BossHealthPanel" Grid.Row="1" Width="260" Padding="10" Margin="12"
++                HorizontalAlignment="Left" VerticalAlignment="Top"
++                Background="#CC111827" BorderBrush="#FBBF24" BorderThickness="1"
++                CornerRadius="4" Visibility="Collapsed" IsHitTestVisible="False">
++            <StackPanel>
++                <TextBlock x:Name="BossHealthName" Foreground="#FBBF24" FontWeight="Bold" FontSize="14"/>
++                <Grid Width="220" Height="14" Margin="0,6,0,3" HorizontalAlignment="Left">
++                    <Rectangle Fill="#33000000"/>
++                    <Rectangle x:Name="BossHealthFill" Width="220" Fill="#DC2626" HorizontalAlignment="Left"/>
++                </Grid>
++                <TextBlock x:Name="BossHealthText" Foreground="#E5E7EB" FontSize="12"/>
++            </StackPanel>
++        </Border>
++
+         <!-- Bottom skill bar -->
+         <DockPanel Grid.Row="2" Background="#222831" LastChildFill="False">
+             <Button x:Name="CallWaveBtn" Content="다음 웨이브 (N)" Width="170" Click="OnCallWave" Background="#2E7D32" Foreground="White" BorderThickness="0" Margin="6"/>
+diff --git a/Views/GamePage.xaml.cs b/Views/GamePage.xaml.cs
+index 9eb8673..390a192 100644
+--- a/Views/GamePage.xaml.cs
++++ b/Views/GamePage.xaml.cs
+@@ -27,7 +27,7 @@ public partial class GamePage : Page
+     private (int c, int r) _hoverTile = (-1, -1);
+ 
+     private readonly Dictionary<TowerInstance, FrameworkElement> _towerShapes = new();
+-    private readonly Dictionary<EnemyInstance, (Ellipse body, Rectangle hpBg, Rectangle hpFg)> _enemyShapes = new();
++    private readonly Dictionary<EnemyInstance, (Image body, Rectangle hpBg, Rectangle hpFg)> _enemyShapes = new();
+     private readonly Dictionary<Projectile, Shape> _projShapes = new();
+     private readonly Dictionary<HitEffect, Ellipse> _fxShapes = new();
+     private readonly Dictionary<Soldier, (Rectangle body, Rectangle hp)> _soldierShapes = new();
+@@ -58,8 +58,9 @@ public GamePage(StageDef stage)
+         Loaded += (_, _) => Focus();
+         Unloaded += (_, _) => _timer.Stop();
+ 
+-        if (stage.Number == 1 && !SaveManager.Current.TutorialDone) ShowTutorial();
+         UpdateHud();
++        if (stage.Number == 1 && !SaveManager.Current.TutorialDone) ShowTutorial();
++        else ShowStageIntro();
+     }
+ 
+     private void OnFrame(object? sender, EventArgs e)
+@@ -278,12 +279,14 @@ private void Render()
+         {
+             if (!_enemyShapes.ContainsKey(e))
+             {
+-                var body = new Ellipse
++                double spriteSize = e.Def.Radius * 2.4;
++                var body = new Image
+                 {
+-                    Width = e.Def.Radius * 2, Height = e.Def.Radius * 2,
+-                    Fill = (Brush)new BrushConverter().ConvertFromString(e.Def.ColorHex)!,
+-                    Stroke = e.Def.IsBoss ? Brushes.Yellow : e.Def.IsFlying ? Brushes.White : Brushes.Black,
+-                    StrokeThickness = e.Def.IsBoss ? 3 : 1, IsHitTestVisible = false
++                    Width = spriteSize,
++                    Height = spriteSize,
++                    Source = EnemyFallbackImageFactory.CreateSprite(e.Def.Kind),
++                    Stretch = Stretch.Uniform,
++                    IsHitTestVisible = false
+                 };
+                 var bg = new Rectangle { Width = e.Def.Radius * 2, Height = 4, Fill = Brushes.Black, IsHitTestVisible = false };
+                 var fg = new Rectangle { Width = e.Def.Radius * 2, Height = 4, Fill = Brushes.LimeGreen, IsHitTestVisible = false };
+@@ -293,8 +296,8 @@ private void Render()
+                 GameCanvas.Children.Add(fg);
+             }
+             var sh = _enemyShapes[e];
+-            Canvas.SetLeft(sh.body, e.Pos.X - e.Def.Radius);
+-            Canvas.SetTop(sh.body, e.Pos.Y - e.Def.Radius);
++            Canvas.SetLeft(sh.body, e.Pos.X - sh.body.Width / 2);
++            Canvas.SetTop(sh.body, e.Pos.Y - sh.body.Height / 2);
+             Canvas.SetLeft(sh.hpBg, e.Pos.X - e.Def.Radius);
+             Canvas.SetTop(sh.hpBg, e.Pos.Y - e.Def.Radius - 8);
+             Canvas.SetLeft(sh.hpFg, e.Pos.X - e.Def.Radius);
+@@ -452,6 +455,32 @@ private void UpdateHud()
+             SkillMode.Reinforce => "맵을 클릭하여 지원군 소환",
+             _ => ""
+         };
++        UpdateBossHud();
++    }
++
++    private void UpdateBossHud()
++    {
++        EnemyInstance? boss = null;
++        foreach (var enemy in _engine.Enemies)
++        {
++            if (enemy.Alive && enemy.Def.IsBoss)
++            {
++                boss = enemy;
++                break;
++            }
++        }
++
++        if (boss == null)
++        {
++            BossHealthPanel.Visibility = Visibility.Collapsed;
++            return;
++        }
++
++        var ratio = Math.Max(0, Math.Min(1, boss.Hp / Math.Max(1, boss.MaxHp)));
++        BossHealthPanel.Visibility = Visibility.Visible;
++        BossHealthName.Text = boss.Def.Name;
++        BossHealthFill.Width = 220 * ratio;
++        BossHealthText.Text = $"{Math.Ceiling(Math.Max(0, boss.Hp))}/{Math.Ceiling(boss.MaxHp)} HP";
+     }
+ 
+     // ---------------- INTERACTION ----------------
+@@ -639,6 +668,73 @@ private void ClearSkillIndicator()
+         if (_skillIndicator != null) { GameCanvas.Children.Remove(_skillIndicator); _skillIndicator = null; }
+     }
+ 
++    private void ShowStageIntro()
++    {
++        var panel = new StackPanel { Background = Brushes.Black, Width = 520 };
++        panel.Children.Add(new TextBlock
++        {
++            Text = $"Stage {_stage.Number}",
++            FontSize = 28,
++            Foreground = Brushes.Gold,
++            FontWeight = FontWeights.Bold,
++            HorizontalAlignment = HorizontalAlignment.Center,
++            Margin = new Thickness(18, 18, 18, 6)
++        });
++        panel.Children.Add(new TextBlock
++        {
++            Text = "Enemies",
++            FontSize = 14,
++            Foreground = Brushes.LightGray,
++            HorizontalAlignment = HorizontalAlignment.Center,
++            Margin = new Thickness(0, 0, 0, 12)
++        });
++
++        var wrap = new WrapPanel { Margin = new Thickness(16, 0, 16, 8), HorizontalAlignment = HorizontalAlignment.Center };
++        var seen = new HashSet<EnemyKind>();
++        foreach (var entry in _stage.Waves.SelectMany(wave => wave.Entries))
++        {
++            if (!seen.Add(entry.Enemy)) continue;
++            var def = EnemyCatalog.Enemies[entry.Enemy];
++            var item = new StackPanel { Width = 96, Margin = new Thickness(6), HorizontalAlignment = HorizontalAlignment.Center };
++            item.Children.Add(new Image
++            {
++                Source = EnemyFallbackImageFactory.CreateIcon(entry.Enemy),
++                Width = 58,
++                Height = 58,
++                Stretch = Stretch.Uniform,
++                HorizontalAlignment = HorizontalAlignment.Center
++            });
++            item.Children.Add(new TextBlock
++            {
++                Text = def.Name,
++                Foreground = Brushes.White,
++                FontSize = 11,
++                TextAlignment = TextAlignment.Center,
++                TextWrapping = TextWrapping.Wrap,
++                Margin = new Thickness(0, 4, 0, 0)
++            });
++            wrap.Children.Add(item);
++        }
++        panel.Children.Add(wrap);
++
++        var start = new Button
++        {
++            Content = "Start",
++            Width = 120,
++            Height = 34,
++            Margin = new Thickness(0, 10, 0, 18),
++            Background = Brushes.SeaGreen,
++            Foreground = Brushes.White,
++            BorderThickness = new Thickness(0),
++            HorizontalAlignment = HorizontalAlignment.Center
++        };
++        start.Click += (s, e) => ClearSelection();
++        panel.Children.Add(start);
++
++        Overlay.Visibility = Visibility.Visible;
++        OverlayContent.Content = panel;
++    }
++
+     // ---------------- BUTTONS ----------------
+ 
+     private void OnSpeed(object s, RoutedEventArgs e)

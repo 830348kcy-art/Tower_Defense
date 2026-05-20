@@ -9,4 +9,10 @@
     <AssemblyName>KingdomRushClone</AssemblyName>
     <LangVersion>latest</LangVersion>
   </PropertyGroup>
+  <ItemGroup>
+    <!-- Tests project lives under Tests/ and has its own .csproj; exclude from main app build. -->
+    <Compile Remove="Tests\**\*.cs" />
+    <Page Remove="Tests\**\*.xaml" />
+    <None Remove="Tests\**\*" />
+  </ItemGroup>
 </Project>

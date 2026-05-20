@@ -10,96 +10,105 @@ namespace KingdomRushClone.Views;
 
 public partial class TowerGuidePage : Page
 {
-    private static readonly List<TowerGuideData> Guides = new()
+    // ─── Narrative text only — all stats come from TowerCatalog (SSOT) ──
+    private record Narrative(string Summary, string Tip, string[] Strengths, string[] Weaknesses);
+
+    private static readonly Dictionary<TowerKind, Narrative> Narratives = new()
     {
-        new(TowerKind.Archer,
-            "아처 타워",
-            "#4CAF50",
-            "🏹",
+        [TowerKind.Archer] = new(
             "원거리 단일 타겟 공격 타워. 빠른 공격속도로 적을 지속적으로 견제합니다.",
             "적은 비용으로 빠르게 설치할 수 있어 초반 운영에 필수입니다. 비행 적(와이번)에 효과적이며, 병영과 함께 배치하면 차단된 적을 집중 사격할 수 있습니다.",
-            new[] { "비행 적 (와이번)", "저HP 다수 적" },
-            new[] { "중장갑 (오크, 암흑기사)" },
-            new[]
-            {
-                new LevelInfo("Lv 1", 70,  6,  110, 0.9f, "기본 아처"),
-                new LevelInfo("Lv 2", 60,  12, 120, 0.85f, "공격력·사거리 소폭 상승"),
-                new LevelInfo("Lv 3", 90,  20, 135, 0.8f,  "Lv4 분기 선택 가능"),
-            },
-            new BranchInfo("사격수 타워", "#1B5E20", "🎯",
-                "단일 대상에게 초고데미지를 입히는 저격수 타워. 긴 사거리로 보스·탱커 제거에 특화.",
-                250, 80, 180, 1.1f, "단일 고데미지 · 긴 사거리"),
-            new BranchInfo("속사 타워", "#2E7D32", "⚡",
-                "연속으로 다수의 적을 동시에 공격하는 다연사 타워. 군중 견제에 탁월.",
-                250, 25, 140, 0.35f, "다중 연사 · 광역 견제")
-        ),
+            new[] { "비행 적 (와이번)", "저HP 다수 적", "치명타 12% (BranchA 25%)" },
+            new[] { "중장갑 (오크, 암흑기사)" }),
 
-        new(TowerKind.Mage,
-            "마법사 타워",
-            "#3F51B5",
-            "🔮",
+        [TowerKind.Mage] = new(
             "마법 피해를 주는 원거리 타워. 장갑을 무시하고 적의 이동속도를 감소시킵니다.",
             "물리 저항이 높은 중장갑 적에게 특히 강합니다. 슬로우 효과로 다른 타워가 더 오래 적을 공격할 수 있도록 도와줍니다. 비용이 높지만 범용성이 좋습니다.",
             new[] { "중장갑 (오크, 암흑기사)", "마법 저항 없는 모든 적" },
-            new[] { "마법 저항 적 (트롤 주술사)" },
-            new[]
-            {
-                new LevelInfo("Lv 1", 100, 14, 100, 1.4f, "슬로우 20% · 1초"),
-                new LevelInfo("Lv 2",  90, 24, 110, 1.3f, "슬로우 25% · 1.2초"),
-                new LevelInfo("Lv 3", 130, 42, 125, 1.2f, "슬로우 30% · 1.5초 / 분기 선택"),
-            },
-            new BranchInfo("서리 마법사", "#1A237E", "❄️",
-                "광역 빙결 슬로우 강화 타워. 주변 모든 적의 이동속도를 대폭 감소시켜 아군 타워의 화력을 극대화.",
-                300, 50, 130, 1.4f, "광역 빙결 슬로우 55% · 2.5초"),
-            new BranchInfo("화염 마법사", "#B71C1C", "🔥",
-                "불꽃 광역 공격과 지속 도트 피해를 입히는 타워. 군중에게 화염을 퍼부어 시간이 지날수록 강력해짐.",
-                300, 60, 130, 1.3f, "광역 화염 + 도트 15dps · 3초")
-        ),
+            new[] { "마법 저항 적 (트롤 주술사)" }),
 
-        new(TowerKind.Bombard,
-            "폭격 타워",
-            "#FF9800",
-            "💣",
+        [TowerKind.Bombard] = new(
             "광역 스플래시 피해를 주는 공성 타워. 느리지만 몰려오는 적 무리를 한번에 제압합니다.",
             "공격 속도가 느린 대신 넓은 범위에 피해를 줍니다. 경로가 좁은 구간이나 적이 밀집하는 코너에 배치하면 효율이 극대화됩니다. 비행 적에게는 피해를 줄 수 없으니 주의.",
             new[] { "밀집된 다수 적", "중장갑 + 군중 동시 처리" },
-            new[] { "비행 적 (폭발물 미적용)", "빠른 단독 적" },
-            new[]
-            {
-                new LevelInfo("Lv 1", 150, 25,  95, 2.2f, "스플래시 반경 50"),
-                new LevelInfo("Lv 2", 130, 45, 105, 2.0f, "스플래시 반경 55"),
-                new LevelInfo("Lv 3", 180, 75, 115, 1.8f, "스플래시 반경 60 / 분기 선택"),
-            },
-            new BranchInfo("박격포", "#E65100", "🎖️",
-                "초장거리·초광역 포격 타워. 맵 반대편 적도 사정거리 안에 두며 넓은 범위를 한번에 초토화.",
-                400, 120, 200, 2.4f, "광역 반경 85 · 사거리 200"),
-            new BranchInfo("지뢰 설치", "#BF360C", "💥",
-                "경로 위에 강력한 지뢰를 설치하는 타워. 즉발 광역 피해로 보스에게도 유효한 대미지를 줌.",
-                400, 200, 120, 3.0f, "즉발 광역 200 피해 · 반경 70")
-        ),
+            new[] { "비행 적 (폭발물 미적용)", "빠른 단독 적" }),
 
-        new(TowerKind.Barracks,
-            "병영",
-            "#795548",
-            "⚔️",
+        [TowerKind.Barracks] = new(
             "근접 병사를 소환하여 경로 위에서 적을 직접 차단하는 전략 타워. DPS보다 '역할'이 핵심.",
-            "병사들이 적의 이동을 막는 동안 아처·마법사 타워가 집중 사격합니다. 병영 단독으론 적을 처치하기 어렵지만, 다른 타워와 조합하면 시너지가 폭발적으로 증가합니다. 킹덤러시 전략의 핵심.",
+            "병사들이 적의 이동을 막는 동안 아처·마법사 타워가 집중 사격합니다. 병영 단독으론 적을 처치하기 어렵지만, 다른 타워와 조합하면 시너지가 폭발적으로 증가합니다.",
             new[] { "모든 지상 적 (차단 역할)", "원거리 타워와 시너지" },
-            new[] { "비행 적 (근접 불가)", "단독 DPS 낮음" },
-            new[]
-            {
-                new LevelInfo("Lv 1",  80, 3,  80, 1.0f, "병사 2체 · HP 60 · 리스폰 10초"),
-                new LevelInfo("Lv 2",  70, 6,  90, 0.9f, "병사 2체 · HP 100 · 리스폰 9초"),
-                new LevelInfo("Lv 3", 110, 10, 100, 0.8f, "병사 3체 · HP 160 · 리스폰 8초 / 분기"),
-            },
-            new BranchInfo("성기사 부대", "#3E2723", "🛡️",
-                "강력한 방어력을 가진 성기사 3체를 소환. 높은 체력으로 보스전에서도 오랫동안 버팁니다.",
-                280, 18, 110, 0.7f, "병사 3체 · HP 320 · 고체력 탱커"),
-            new BranchInfo("도적 부대", "#4E342E", "🗡️",
-                "빠른 공격속도를 가진 도적 3체를 소환. 차단보다 처치를 우선하며 중간 체력 적을 빠르게 제거.",
-                280, 32, 110, 0.5f, "병사 3체 · HP 180 · 고DPS 어쌔신")
-        ),
+            new[] { "비행 적 (근접 불가)", "단독 DPS 낮음" }),
+
+        [TowerKind.Slow] = new(
+            "광역 슬로우 효과를 부여하는 서포트 타워입니다.",
+            "데미지는 낮지만 강력한 둔화 효과로 적들의 진격을 늦춥니다. 폭격 타워나 아처 타워 근처에 배치하여 화력을 집중할 시간을 벌어주세요.",
+            new[] { "빠른 적 (고블린 스카우트)", "밀집된 군중" },
+            new[] { "슬로우 면역 적", "보스 (낮은 대미지)" }),
     };
+
+    // ─── Guides built from TowerCatalog at startup ──────────────────────
+    private static readonly List<TowerGuideData> Guides = BuildGuides();
+
+    private static List<TowerGuideData> BuildGuides()
+    {
+        var order = new[] { TowerKind.Archer, TowerKind.Mage, TowerKind.Bombard, TowerKind.Barracks, TowerKind.Slow };
+        var list = new List<TowerGuideData>();
+        foreach (var kind in order)
+        {
+            var def = TowerCatalog.Towers[kind];
+            var nar = Narratives[kind];
+
+            var levels = new List<LevelInfo>();
+            for (int i = 0; i < def.Levels.Count; i++)
+            {
+                var lv = def.Levels[i];
+                int dmgCol = kind == TowerKind.Barracks ? (int)lv.SoldierDamage : (int)lv.Damage;
+                string note = BuildLevelNote(kind, i, lv);
+                levels.Add(new LevelInfo($"Lv {i + 1}", lv.Cost, dmgCol, (int)lv.Range, (float)lv.AttackInterval, note));
+            }
+
+            list.Add(new TowerGuideData(
+                kind, def.Name,
+                def.GuideColorHex, def.TowerColorHex, def.ProjectileColorHex,
+                def.Icon,
+                nar.Summary, nar.Tip, nar.Strengths, nar.Weaknesses,
+                levels.ToArray(),
+                BuildBranch(def.BranchA, kind),
+                BuildBranch(def.BranchB, kind)));
+        }
+        return list;
+    }
+
+    private static string BuildLevelNote(TowerKind kind, int levelIdx, TowerLevel lv)
+    {
+        bool last = levelIdx == 2;
+        string suffix = last ? "  →  분기 선택 가능" : "";
+        return kind switch
+        {
+            TowerKind.Mage when lv.SlowAmount > 0
+                => $"슬로우 {lv.SlowAmount * 100:F0}% · {lv.SlowDuration:F1}s{suffix}",
+            TowerKind.Bombard when lv.SplashRadius > 0
+                => $"스플래시 반경 {lv.SplashRadius:F0}{suffix}",
+            TowerKind.Barracks
+                => $"병사 {lv.SoldierCount}체 · HP {lv.SoldierHp:F0} · 리스폰 {lv.SoldierRespawn:F0}s{suffix}",
+            TowerKind.Slow when lv.SlowAmount > 0
+                => $"슬로우 {lv.SlowAmount * 100:F0}% · 반경 {lv.SplashRadius:F0}",
+            _ => string.IsNullOrEmpty(lv.UpgradeNote) ? (last ? "분기 선택 가능" : "기본") : lv.UpgradeNote + suffix,
+        };
+    }
+
+    private static BranchInfo BuildBranch(TowerDef? branch, TowerKind parentKind)
+    {
+        if (branch == null || branch.Levels.Count == 0)
+            return new BranchInfo("(없음)", "#444444", "?", "", 0, 0, 0, 0f, "");
+
+        var lv = branch.Levels[0];
+        int dmgCol = parentKind == TowerKind.Barracks ? (int)lv.SoldierDamage : (int)lv.Damage;
+        string feature = string.IsNullOrEmpty(lv.UpgradeNote) ? branch.Description : lv.UpgradeNote;
+        return new BranchInfo(
+            branch.Name, branch.GuideColorHex, branch.Icon, branch.Description,
+            lv.Cost, dmgCol, (int)lv.Range, (float)lv.AttackInterval, feature);
+    }
 
     private TowerKind _selected = TowerKind.Archer;
 
@@ -116,7 +125,8 @@ public partial class TowerGuidePage : Page
         TowerListPanel.Children.Add(new TextBlock
         {
             Text = "타워 목록",
-            FontSize = 16, FontWeight = FontWeights.Bold,
+            FontSize = 16,
+            FontWeight = FontWeights.Bold,
             Foreground = Brushes.LightGoldenrodYellow,
             Margin = new Thickness(0, 0, 0, 12)
         });
@@ -126,9 +136,10 @@ public partial class TowerGuidePage : Page
             bool sel = g.Kind == _selected;
             var btn = new Button
             {
-                Height = 56, Margin = new Thickness(0, 4, 0, 4),
+                Height = 56,
+                Margin = new Thickness(0, 4, 0, 4),
                 Background = sel
-                    ? (Brush)new BrushConverter().ConvertFromString(g.ColorHex)!
+                    ? (Brush)new BrushConverter().ConvertFromString(g.GuideColorHex)!
                     : new SolidColorBrush(Color.FromRgb(42, 50, 60)),
                 BorderThickness = new Thickness(sel ? 2 : 0),
                 BorderBrush = Brushes.White,
@@ -158,10 +169,11 @@ public partial class TowerGuidePage : Page
 
     private static string RoleShort(TowerKind k) => k switch
     {
-        TowerKind.Archer   => "단일 원거리 · 속사",
-        TowerKind.Mage     => "마법 피해 · 슬로우",
-        TowerKind.Bombard  => "광역 스플래시",
+        TowerKind.Archer => "단일 원거리 · 속사",
+        TowerKind.Mage => "마법 피해 · 슬로우",
+        TowerKind.Bombard => "광역 스플래시",
         TowerKind.Barracks => "근접 차단 · 소환",
+        TowerKind.Slow => "광역 둔화 · 서포트",
         _ => ""
     };
 
@@ -177,13 +189,15 @@ public partial class TowerGuidePage : Page
         htitle.Children.Add(new TextBlock
         {
             Text = g.Name,
-            FontSize = 28, FontWeight = FontWeights.Bold,
-            Foreground = (Brush)new BrushConverter().ConvertFromString(g.ColorHex)!
+            FontSize = 28,
+            FontWeight = FontWeights.Bold,
+            Foreground = (Brush)new BrushConverter().ConvertFromString(g.GuideColorHex)!
         });
         htitle.Children.Add(new TextBlock
         {
             Text = RoleShort(kind),
-            FontSize = 14, Foreground = Brushes.LightGray
+            FontSize = 14,
+            Foreground = Brushes.LightGray
         });
         header.Children.Add(htitle);
         DetailPanel.Children.Add(header);
@@ -216,7 +230,7 @@ public partial class TowerGuidePage : Page
         // 레벨 업그레이드
         DetailPanel.Children.Add(Label("레벨 업그레이드 (Lv 1 → 3)"));
         foreach (var lv in g.Levels)
-            DetailPanel.Children.Add(LevelCard(lv, g.ColorHex));
+            DetailPanel.Children.Add(LevelCard(lv, g.GuideColorHex));
         DetailPanel.Children.Add(SectionSpace());
         DetailPanel.Children.Add(Divider());
 
@@ -225,7 +239,10 @@ public partial class TowerGuidePage : Page
         DetailPanel.Children.Add(new TextBlock
         {
             Text = "Lv 3 도달 후 두 가지 전문화 경로 중 하나를 선택합니다. 선택 후 변경 불가.",
-            Foreground = Brushes.LightGray, FontSize = 13, Margin = new Thickness(0, 0, 0, 12), TextWrapping = TextWrapping.Wrap
+            Foreground = Brushes.LightGray,
+            FontSize = 13,
+            Margin = new Thickness(0, 0, 0, 12),
+            TextWrapping = TextWrapping.Wrap
         });
 
         var branchGrid = new Grid { Margin = new Thickness(0, 0, 0, 0) };
@@ -247,7 +264,8 @@ public partial class TowerGuidePage : Page
             {
                 Text = "💡  " + tip,
                 Foreground = Brushes.LightGoldenrodYellow,
-                FontSize = 13, Margin = new Thickness(0, 4, 0, 4),
+                  FontSize = 13,
+                Margin = new Thickness(0, 4, 0, 4),
                 TextWrapping = TextWrapping.Wrap
             });
     }
@@ -261,42 +279,77 @@ public partial class TowerGuidePage : Page
             Margin = new Thickness(0, 4, 0, 4),
             Padding = new Thickness(14, 10, 14, 10)
         };
+
         var g = new Grid();
+
         g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(80) });
         g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(80) });
         g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(80) });
         g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(80) });
-        g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(80) });
+        g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(90) });
         g.ColumnDefinitions.Add(new ColumnDefinition());
 
         var lvLabel = new TextBlock
         {
-            Text = lv.Label, FontWeight = FontWeights.Bold, FontSize = 15,
+             Text = lv.Label,
+            FontWeight = FontWeights.Bold,
+            FontSize = 15,
             Foreground = (Brush)new BrushConverter().ConvertFromString(colorHex)!,
             VerticalAlignment = VerticalAlignment.Center
         };
 
-        UIElement Stat(string icon, string val) {
-            var s = new StackPanel { Orientation = Orientation.Vertical, HorizontalAlignment = HorizontalAlignment.Center };
-            s.Children.Add(new TextBlock { Text = icon, FontSize = 11, Foreground = Brushes.Gray, HorizontalAlignment = HorizontalAlignment.Center });
-            s.Children.Add(new TextBlock { Text = val, FontSize = 13, Foreground = Brushes.White, HorizontalAlignment = HorizontalAlignment.Center });
+           UIElement Stat(string icon, string val)
+        {
+            var s = new StackPanel
+            {
+                Orientation = Orientation.Vertical,
+                HorizontalAlignment = HorizontalAlignment.Center
+            };
+
+            s.Children.Add(new TextBlock
+            {
+                Text = icon,
+                FontSize = 11,
+                Foreground = Brushes.Gray,
+                HorizontalAlignment = HorizontalAlignment.Center
+            });
+
+            s.Children.Add(new TextBlock
+            {
+                Text = val,
+                FontSize = 13,
+                Foreground = Brushes.White,
+                HorizontalAlignment = HorizontalAlignment.Center
+            });
             return s;
         }
 
-        var note = new TextBlock { Text = lv.Note, FontSize = 12, Foreground = Brushes.LightGray, VerticalAlignment = VerticalAlignment.Center, TextWrapping = TextWrapping.Wrap };
+         var costStat = Stat("비용", $"{lv.Cost}G");
+        var dmgStat = Stat("피해", $"{lv.Damage}");
+        var rangeStat = Stat("사거리", $"{lv.Range}");
+        var intervalStat = Stat("공격간격", $"{lv.Interval}s");
+
+        var note = new TextBlock
+        {
+            Text = lv.Note,
+            FontSize = 12,
+            Foreground = Brushes.LightGray,
+            VerticalAlignment = VerticalAlignment.Center,
+            TextWrapping = TextWrapping.Wrap
+        };
 
         Grid.SetColumn(lvLabel, 0);
-        Grid.SetColumn(Stat("비용", $"{lv.Cost}G"), 1);
-        Grid.SetColumn(Stat("피해", $"{lv.Damage}"), 2);
-        Grid.SetColumn(Stat("사거리", $"{lv.Range}"), 3);
-        Grid.SetColumn(Stat("공격간격", $"{lv.Interval}s"), 4);
+        Grid.SetColumn(costStat, 1);
+        Grid.SetColumn(dmgStat, 2);
+        Grid.SetColumn(rangeStat, 3);
+        Grid.SetColumn(intervalStat, 4);
         Grid.SetColumn(note, 5);
 
         g.Children.Add(lvLabel);
-        g.Children.Add(Stat("비용", $"{lv.Cost}G"));
-        g.Children.Add(Stat("피해", $"{lv.Damage}"));
-        g.Children.Add(Stat("사거리", $"{lv.Range}"));
-        g.Children.Add(Stat("공격간격", $"{lv.Interval}s"));
+        g.Children.Add(costStat);
+        g.Children.Add(dmgStat);
+        g.Children.Add(rangeStat);
+        g.Children.Add(intervalStat);
         g.Children.Add(note);
 
         border.Child = g;
@@ -327,7 +380,9 @@ public partial class TowerGuidePage : Page
         void AddChip(string txt, Brush fg) => stats.Children.Add(new Border
         {
             Background = new SolidColorBrush(Color.FromArgb(80, 255, 255, 255)),
-            CornerRadius = new CornerRadius(4), Margin = new Thickness(0, 0, 6, 4), Padding = new Thickness(8, 3, 8, 3),
+            CornerRadius = new CornerRadius(4),
+            Margin = new Thickness(0, 0, 6, 4),
+            Padding = new Thickness(8, 3, 8, 3),
             Child = new TextBlock { Text = txt, Foreground = fg, FontSize = 12 }
         });
         AddChip($"비용 {b.Cost}G", Brushes.LightGoldenrodYellow);
@@ -375,19 +430,27 @@ public partial class TowerGuidePage : Page
 
     private static TextBlock Label(string text) => new()
     {
-        Text = text, FontSize = 16, FontWeight = FontWeights.Bold,
-        Foreground = Brushes.LightGoldenrodYellow, Margin = new Thickness(0, 0, 0, 10)
+        Text = text,
+        FontSize = 16,
+        FontWeight = FontWeights.Bold,
+        Foreground = Brushes.LightGoldenrodYellow,
+        Margin = new Thickness(0, 0, 0, 10)
     };
 
     private static TextBlock Body(string text) => new()
     {
-        Text = text, FontSize = 14, Foreground = Brushes.LightGray,
-        TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 8), LineHeight = 22
+        Text = text,
+        FontSize = 14,
+        Foreground = Brushes.LightGray,
+        TextWrapping = TextWrapping.Wrap,
+        Margin = new Thickness(0, 0, 0, 8),
+        LineHeight = 22
     };
 
     private static UIElement Divider() => new Rectangle
     {
-        Height = 1, Fill = new SolidColorBrush(Color.FromRgb(50, 60, 75)),
+        Height = 1,
+        Fill = new SolidColorBrush(Color.FromRgb(50, 60, 75)),
         Margin = new Thickness(0, 10, 0, 14)
     };
 
@@ -399,7 +462,7 @@ public partial class TowerGuidePage : Page
 // ── 데이터 클래스 ─────────────────────────────────────
 
 record TowerGuideData(
-    TowerKind Kind, string Name, string ColorHex, string Icon,
+   TowerKind Kind, string Name, string GuideColorHex, string TowerColorHex, string ProjectileColorHex, string Icon,
     string Summary, string Tip,
     string[] Strengths, string[] Weaknesses,
     LevelInfo[] Levels, BranchInfo BranchA, BranchInfo BranchB);
