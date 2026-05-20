@@ -40,18 +40,22 @@ public enum TargetMode  { First, Last, Strongest, Weakest, Flying }
 
 public enum EnemyKind
 {
-    GoblinSoldier,
-    GoblinScout,
-    OrcWarrior,
-    Wyvern,
-    TrollShaman,
-    DarkKnight,
-    MidBoss,
-    Boss,
+    Normal,
+    Fast,
     SplitBody,
     SplitSmall,
-    SplitMidBoss,
-    SplitBoss
+    Elite,
+    EliteCharge,
+    EliteRegenerator,
+    EliteGhost,
+    MidBossNormal,
+    MidBossCharge,
+    MidBossSplit,
+    MidBossSpeed,
+    BossNormal,
+    BossCharge,
+    BossSplit,
+    BossSpeed
 }
 
 public enum GameSpeed { Paused = 0, Normal = 1, Fast = 2 }

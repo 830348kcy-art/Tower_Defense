@@ -70,20 +70,11 @@ public class GameEngine
         if (ReinforcementCooldown > 0) ReinforcementCooldown -= dt;
 
         foreach (var t in Towers) t.Tick(dt, this);
+        ApplyEnemySpeedBonuses();
         foreach (var e in Enemies)
         {
             e.Tick(dt);
-            if (e.Def.IsHealer && e.Alive)
-            {
-                e.HealTimer -= dt;
-                if (e.HealTimer <= 0)
-                {
-                    e.HealTimer = e.Def.HealInterval;
-                    foreach (var ally in Enemies)
-                        if (ally != e && ally.Alive && e.Pos.DistanceTo(ally.Pos) < e.Def.HealRadius)
-                            ally.Hp = Math.Min(ally.MaxHp, ally.Hp + e.Def.HealAmount);
-                }
-            }
+            TickEnemySupport(e, dt);
         }
 
         if (ReinforcementTimer > 0)
@@ -150,7 +141,10 @@ public class GameEngine
             Hp            = maxHp,
             Speed         = def.Speed * speedScale,
             Alive         = true,
-            PathIndex     = Stage.Paths.IndexOf(path)
+            PathIndex     = Stage.Paths.IndexOf(path),
+            ShieldCharges = def.ShieldCharges,
+            RegenerateTimer = def.RegenerateInterval,
+            GhostTimer    = def.GhostCycle
         };
     }
 
@@ -173,39 +167,72 @@ public class GameEngine
         }
     }
 
-    public EnemyInstance CreateEnemy(EnemyDef def, Vec2 pos, List<Vec2> path, int waypointIndex)
+    private void ApplyEnemySpeedBonuses()
     {
-        double hpScale = Stage.EnemyHpScale * (1 - SaveManager.TechEffect(TechId.EnemyHpReduction));
-        double speedScale = Stage.EnemySpeedScale * (1 - SaveManager.TechEffect(TechId.EnemySpeedReduction));
-        double maxHp = def.MaxHp * hpScale;
+        foreach (var enemy in Enemies)
+            enemy.ExternalSpeedBonus = 0;
 
-        return new EnemyInstance
+        foreach (var source in Enemies)
         {
-            Def = def,
-            Pos = pos,
-            Path = path,
-            WaypointIndex = waypointIndex,
-            MaxHp = maxHp,
-            Hp = maxHp,
-            Speed = def.Speed * speedScale,
-            Alive = true,
-            PathIndex = Stage.Paths.IndexOf(path)
-        };
+            if (!source.Alive) continue;
+
+            if (source.Def.GlobalSpeedBonus > 0)
+            {
+                foreach (var target in Enemies)
+                    if (target != source && target.Alive)
+                        target.ExternalSpeedBonus += source.Def.GlobalSpeedBonus;
+            }
+
+            if (source.Def.AuraSpeedBonus > 0 && source.Def.AuraRadius > 0)
+            {
+                foreach (var target in Enemies)
+                {
+                    if (target == source || !target.Alive) continue;
+                    if (source.Pos.DistanceTo(target.Pos) <= source.Def.AuraRadius)
+                        target.ExternalSpeedBonus += source.Def.AuraSpeedBonus;
+                }
+            }
+        }
     }
 
-    private void SpawnDeathSpawns(EnemyInstance parent)
+    private void TickEnemySupport(EnemyInstance e, double dt)
     {
-        if (parent.Def.DeathSpawns.Count == 0) return;
+        if (!e.Alive) return;
 
-        double center = (parent.Def.DeathSpawns.Count - 1) / 2.0;
-        for (int i = 0; i < parent.Def.DeathSpawns.Count; i++)
+        if (e.Def.RegenerateInterval > 0)
         {
-            var childDef = EnemyCatalog.Enemies[parent.Def.DeathSpawns[i]];
-            var offset = new Vec2((i - center) * Math.Max(12, childDef.Radius), 0);
-            var child = CreateEnemy(childDef, parent.Pos + offset, parent.Path, parent.WaypointIndex);
-            child.PathIndex = parent.PathIndex;
-            Enemies.Add(child);
+            e.RegenerateTimer -= dt;
+            if (e.RegenerateTimer <= 0)
+            {
+                e.RegenerateTimer = e.Def.RegenerateInterval;
+                Heal(e, e.MaxHp * e.Def.RegenerateSelfPercent);
+                foreach (var ally in Enemies)
+                {
+                    if (ally == e || !ally.Alive) continue;
+                    if (e.Pos.DistanceTo(ally.Pos) <= e.Def.RegenerateRadius)
+                        Heal(ally, ally.MaxHp * e.Def.RegenerateAllyPercent);
+                }
+            }
+            return;
         }
+
+        if (e.Def.IsHealer)
+        {
+            e.HealTimer -= dt;
+            if (e.HealTimer <= 0)
+            {
+                e.HealTimer = e.Def.HealInterval;
+                foreach (var ally in Enemies)
+                    if (ally != e && ally.Alive && e.Pos.DistanceTo(ally.Pos) < e.Def.HealRadius)
+                        Heal(ally, e.Def.HealAmount);
+            }
+        }
+    }
+
+    private static void Heal(EnemyInstance enemy, double amount)
+    {
+        if (amount <= 0) return;
+        enemy.Hp = Math.Min(enemy.MaxHp, enemy.Hp + amount);
     }
 
     public bool TryBuild(Vec2 slot, TowerKind kind)
@@ -267,7 +294,6 @@ public class GameEngine
             if (point.DistanceTo(e.Pos) <= radius)
             {
                 e.ApplyDamage(damage, DamageType.Explosive);
-                if (!e.Alive) Gold += e.Def.GoldReward + (int)SaveManager.TechEffect(TechId.KillGoldBonus);
             }
         }
         SpawnHitEffect(point, radius, "#FF6F00");

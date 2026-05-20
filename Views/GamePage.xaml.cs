@@ -712,15 +712,23 @@ public partial class GamePage : Page
 
     private static string EnemyIcon(EnemyKind k) => k switch
     {
-        EnemyKind.GoblinSoldier => "👺",
-        EnemyKind.GoblinScout   => "🏃",
-        EnemyKind.OrcWarrior    => "🪖",
-        EnemyKind.Wyvern        => "🐉",
-        EnemyKind.TrollShaman   => "🧙",
-        EnemyKind.DarkKnight    => "⚔",
-        EnemyKind.MidBoss       => "👹",
-        EnemyKind.Boss          => "💀",
-        _                       => "?"
+        EnemyKind.Normal           => "N",
+        EnemyKind.Fast             => "F",
+        EnemyKind.SplitBody        => "S",
+        EnemyKind.SplitSmall       => "s",
+        EnemyKind.Elite            => "E",
+        EnemyKind.EliteCharge      => "EC",
+        EnemyKind.EliteRegenerator => "ER",
+        EnemyKind.EliteGhost       => "EG",
+        EnemyKind.MidBossNormal    => "MN",
+        EnemyKind.MidBossCharge    => "MC",
+        EnemyKind.MidBossSplit     => "MS",
+        EnemyKind.MidBossSpeed     => "MV",
+        EnemyKind.BossNormal       => "BN",
+        EnemyKind.BossCharge       => "BC",
+        EnemyKind.BossSplit        => "BS",
+        EnemyKind.BossSpeed        => "BV",
+        _                          => "?"
     };
 
     // ─── INTERACTION ─────────────────────────────────────────────────────

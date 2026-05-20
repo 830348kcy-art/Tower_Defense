@@ -69,18 +69,23 @@ public static class EnemyFallbackImageFactory
     {
         switch (kind)
         {
-            case EnemyKind.GoblinScout:   DrawFast(context); return;
-            case EnemyKind.SplitBody:     DrawSplit(context, SplitColor, 17, 14, true); return;
-            case EnemyKind.SplitSmall:    DrawSplit(context, SplitColor, 12, 10, false); return;
-            case EnemyKind.OrcWarrior:    DrawHeavy(context); return;
-            case EnemyKind.Wyvern:        DrawFlying(context); return;
-            case EnemyKind.TrollShaman:   DrawMagic(context); DrawRegenMark(context); return;
-            case EnemyKind.DarkKnight:    DrawKnight(context); return;
-            case EnemyKind.MidBoss:       DrawMiniBoss(context, Color.FromRgb(216, 67, 21)); DrawCrownMark(context, Color.FromRgb(216, 67, 21)); return;
-            case EnemyKind.SplitMidBoss:  DrawSplit(context, MiniBossColor, 20, 17, true); DrawMiniBossBadge(context); return;
-            case EnemyKind.Boss:          DrawBoss(context, Color.FromRgb(74, 20, 140)); DrawCrownMark(context, Color.FromRgb(74, 20, 140)); return;
-            case EnemyKind.SplitBoss:     DrawSplit(context, BossColor, 25, 21, true); DrawBossBadge(context); return;
-            default:                      DrawNormal(context); return;
+            case EnemyKind.Normal:           DrawNormal(context); return;
+            case EnemyKind.Fast:             DrawFast(context); return;
+            case EnemyKind.SplitBody:        DrawSplit(context, SplitColor, 17, 14, true); return;
+            case EnemyKind.SplitSmall:       DrawSplit(context, SplitColor, 12, 10, false); return;
+            case EnemyKind.Elite:            DrawHeavy(context); DrawAuraMark(context); DrawShieldMark(context); return;
+            case EnemyKind.EliteCharge:      DrawHeavy(context); DrawChargeMark(context); return;
+            case EnemyKind.EliteRegenerator: DrawMagic(context); DrawRegenMark(context); return;
+            case EnemyKind.EliteGhost:       DrawGhost(context); return;
+            case EnemyKind.MidBossNormal:    DrawMiniBoss(context, Color.FromRgb(216, 67, 21)); DrawCrownMark(context, Color.FromRgb(216, 67, 21)); return;
+            case EnemyKind.MidBossCharge:    DrawMiniBoss(context, MiniBossColor); DrawChargeMark(context); return;
+            case EnemyKind.MidBossSplit:     DrawSplit(context, MiniBossColor, 20, 17, true); DrawMiniBossBadge(context); return;
+            case EnemyKind.MidBossSpeed:     DrawMiniBoss(context, Color.FromRgb(2, 132, 199)); DrawSpeedMark(context); return;
+            case EnemyKind.BossNormal:       DrawBoss(context, Color.FromRgb(74, 20, 140)); DrawCrownMark(context, Color.FromRgb(74, 20, 140)); return;
+            case EnemyKind.BossCharge:       DrawBoss(context, Color.FromRgb(180, 83, 9)); DrawChargeMark(context); return;
+            case EnemyKind.BossSplit:        DrawSplit(context, BossColor, 25, 21, true); DrawBossBadge(context); return;
+            case EnemyKind.BossSpeed:        DrawBoss(context, Color.FromRgb(3, 105, 161)); DrawSpeedMark(context); return;
+            default:                         DrawNormal(context); return;
         }
     }
 
@@ -143,6 +148,14 @@ public static class EnemyFallbackImageFactory
         context.DrawLine(Pen(Color.FromRgb(148, 163, 184), 4), new Point(31, 47), new Point(49, 47));
     }
 
+    private static void DrawGhost(DrawingContext context)
+    {
+        var body = Geometry.Parse("M 22 62 C 24 29 30 18 40 18 C 51 18 57 29 58 62 L 50 56 L 44 62 L 38 56 L 31 62 L 26 56 Z");
+        context.DrawGeometry(Brush(Color.FromRgb(167, 139, 250)), Pen(InkColor, 2), body);
+        context.DrawEllipse(Brush(Color.FromArgb(120, 255, 255, 255)), null, new Point(34, 32), 5, 5);
+        context.DrawEllipse(Brush(Color.FromRgb(76, 29, 149)), null, new Point(48, 42), 3, 3);
+    }
+
     private static void DrawMiniBoss(DrawingContext context, Color color)
     {
         context.DrawEllipse(Brush(color), Pen(InkColor, 2), new Point(40, 43), 23, 21);
@@ -161,6 +174,31 @@ public static class EnemyFallbackImageFactory
     {
         context.DrawRectangle(Brush(Color.FromRgb(187, 247, 208)), null, new Rect(36, 28, 8, 27));
         context.DrawRectangle(Brush(Color.FromRgb(187, 247, 208)), null, new Rect(27, 37, 26, 8));
+    }
+
+    private static void DrawAuraMark(DrawingContext context)
+    {
+        context.DrawEllipse(null, Pen(Color.FromRgb(125, 211, 252), 2), new Point(40, 43), 29, 26);
+    }
+
+    private static void DrawShieldMark(DrawingContext context)
+    {
+        var shield = Geometry.Parse("M 40 19 L 54 25 L 51 43 C 48 51 43 56 40 58 C 37 56 32 51 29 43 L 26 25 Z");
+        context.DrawGeometry(Brush(Color.FromArgb(85, 219, 234, 254)), Pen(Color.FromRgb(191, 219, 254), 1.5), shield);
+    }
+
+    private static void DrawChargeMark(DrawingContext context)
+    {
+        var bolt = Geometry.Parse("M 45 16 L 29 43 L 41 43 L 34 64 L 56 35 L 44 35 Z");
+        context.DrawGeometry(Brush(Color.FromRgb(250, 204, 21)), Pen(Color.FromRgb(120, 53, 15), 1.4), bolt);
+    }
+
+    private static void DrawSpeedMark(DrawingContext context)
+    {
+        var pen = Pen(Color.FromRgb(186, 230, 253), 3);
+        context.DrawLine(pen, new Point(14, 30), new Point(32, 30));
+        context.DrawLine(pen, new Point(10, 43), new Point(31, 43));
+        context.DrawLine(pen, new Point(16, 56), new Point(34, 56));
     }
 
     private static void DrawCrownMark(DrawingContext context, Color color)

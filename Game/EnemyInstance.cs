@@ -12,11 +12,19 @@ public class EnemyInstance
     public double Hp;
     public double MaxHp;
     public double Speed;
+    public double ExternalSpeedBonus;
     public double SlowTimer;
     public double SlowFactor;
     public double DotTimer;
     public double DotDps;
     public double HealTimer;
+    public double RegenerateTimer;
+    public int ShieldCharges;
+    public bool ChargeTriggered;
+    public double ChargeTimer;
+    public double GhostTimer;
+    public double GhostInvincibleTimer;
+    public bool IsInvincible;
     public bool Alive = true;
     public bool ReachedBase;
     public Soldier? EngagedBy;
@@ -27,9 +35,12 @@ public class EnemyInstance
     {
         if (!Alive) return;
 
+        TickGhost(dt);
+
         if (DotTimer > 0)
         {
-            Hp -= DotDps * dt;
+            if (!IsInvincible)
+                Hp -= DotDps * dt;
             DotTimer -= dt;
             if (Hp <= 0) { Alive = false; return; }
         }
@@ -47,7 +58,21 @@ public class EnemyInstance
         }
         EngagedBy = null;
 
-        double effSpeed = Speed;
+        double effSpeed = Speed * (1 + ExternalSpeedBonus);
+        if (Def.ChargeSpeedMultiplier > 1
+            && !ChargeTriggered
+            && Hp <= MaxHp * Def.ChargeHpThreshold)
+        {
+            ChargeTriggered = true;
+            ChargeTimer = Def.ChargeDuration;
+        }
+
+        if (ChargeTimer > 0)
+        {
+            effSpeed *= Def.ChargeSpeedMultiplier;
+            ChargeTimer -= dt;
+        }
+
         if (SlowTimer > 0)
         {
             effSpeed *= (1 - SlowFactor);
@@ -78,6 +103,18 @@ public class EnemyInstance
 
     public void ApplyDamage(double dmg, DamageType type)
     {
+        if (dmg <= 0 || !Alive) return;
+
+        if (type != DamageType.True)
+        {
+            if (IsInvincible) return;
+            if (ShieldCharges > 0)
+            {
+                ShieldCharges--;
+                return;
+            }
+        }
+
         double mult = type switch
         {
             DamageType.Physical => 1.0 - Def.PhysicalResist,
@@ -104,5 +141,27 @@ public class EnemyInstance
     {
         DotDps = dps;
         DotTimer = duration;
+    }
+
+    private void TickGhost(double dt)
+    {
+        IsInvincible = false;
+        if (Def.GhostCycle <= 0 || Def.GhostDuration <= 0) return;
+
+        if (GhostInvincibleTimer > 0)
+        {
+            IsInvincible = true;
+            GhostInvincibleTimer -= dt;
+            if (GhostInvincibleTimer <= 0)
+                GhostTimer = Def.GhostCycle;
+            return;
+        }
+
+        GhostTimer -= dt;
+        if (GhostTimer <= 0)
+        {
+            GhostInvincibleTimer = Def.GhostDuration;
+            IsInvincible = true;
+        }
     }
 }
