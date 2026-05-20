@@ -1,6 +1,5 @@
 using System.Collections.Generic;
 using KingdomRushClone.Data;
-using KingdomRushClone.Managers;
 using KingdomRushClone.Models;
 
 namespace KingdomRushClone.Game;
@@ -82,20 +81,8 @@ public class WaveSpawner
     private void SpawnOne(WaveEntry entry)
     {
         var def = EnemyCatalog.Enemies[entry.Enemy];
-        double hpScale = _stage.EnemyHpScale * (1 - SaveManager.TechEffect(TechId.EnemyHpReduction));
-        double speedScale = _stage.EnemySpeedScale * (1 - SaveManager.TechEffect(TechId.EnemySpeedReduction));
         var path = _stage.Paths[entry.SpawnPath % _stage.Paths.Count];
-        var enemy = new EnemyInstance
-        {
-            Def = def,
-            Pos = path[0],
-            Path = path,
-            WaypointIndex = 0,
-            MaxHp = def.MaxHp * hpScale,
-            Hp = def.MaxHp * hpScale,
-            Speed = def.Speed * speedScale,
-            Alive = true
-        };
+        var enemy = _engine.CreateEnemy(def, path[0], path, 0);
         _engine.Enemies.Add(enemy);
     }
 }

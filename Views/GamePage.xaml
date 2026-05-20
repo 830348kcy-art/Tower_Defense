@@ -26,6 +26,20 @@
             <Canvas x:Name="GameCanvas" Width="1100" Height="620" Background="#1B2733" ClipToBounds="True" MouseLeftButtonDown="OnCanvasClick"/>
         </Border>
 
+        <Border x:Name="BossHealthPanel" Grid.Row="1" Width="260" Padding="10" Margin="12"
+                HorizontalAlignment="Left" VerticalAlignment="Top"
+                Background="#CC111827" BorderBrush="#FBBF24" BorderThickness="1"
+                CornerRadius="4" Visibility="Collapsed" IsHitTestVisible="False">
+            <StackPanel>
+                <TextBlock x:Name="BossHealthName" Foreground="#FBBF24" FontWeight="Bold" FontSize="14"/>
+                <Grid Width="220" Height="14" Margin="0,6,0,3" HorizontalAlignment="Left">
+                    <Rectangle Fill="#33000000"/>
+                    <Rectangle x:Name="BossHealthFill" Width="220" Fill="#DC2626" HorizontalAlignment="Left"/>
+                </Grid>
+                <TextBlock x:Name="BossHealthText" Foreground="#E5E7EB" FontSize="12"/>
+            </StackPanel>
+        </Border>
+
         <!-- Bottom skill bar -->
         <DockPanel Grid.Row="2" Background="#222831" LastChildFill="False">
             <Button x:Name="CallWaveBtn" Content="다음 웨이브 (N)" Width="170" Click="OnCallWave" Background="#2E7D32" Foreground="White" BorderThickness="0" Margin="6"/>
