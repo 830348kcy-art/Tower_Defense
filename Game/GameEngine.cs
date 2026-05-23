@@ -30,6 +30,7 @@ public class GameEngine
     public int LivesMax;
     public GameResult Result = GameResult.Playing;
     public GameSpeed Speed = GameSpeed.Normal;
+    private int _temporaryPauseCount;
 
     public double MeteorCooldown;
     public double MeteorCooldownMax = 30;
@@ -61,7 +62,7 @@ public class GameEngine
     public void Tick(double dt)
     {
         if (Result != GameResult.Playing) return;
-        if (Speed == GameSpeed.Paused) return;
+        if (Speed == GameSpeed.Paused || _temporaryPauseCount > 0) return;
         double scale = Speed == GameSpeed.Fast ? 2.0 : 1.0;
         dt *= scale;
 
@@ -70,6 +71,8 @@ public class GameEngine
         if (ReinforcementCooldown > 0) ReinforcementCooldown -= dt;
 
         foreach (var t in Towers) t.Tick(dt, this);
+        foreach (var e in Enemies)
+            TickGlobalSpeedBonus(e, dt);
         ApplyEnemySpeedBonuses();
         foreach (var e in Enemies)
         {
@@ -121,6 +124,17 @@ public class GameEngine
         DamageEvents.Clear();
     }
 
+    public void BeginTemporaryPause()
+    {
+        _temporaryPauseCount++;
+    }
+
+    public void EndTemporaryPause()
+    {
+        if (_temporaryPauseCount > 0)
+            _temporaryPauseCount--;
+    }
+
     /// <summary>
     /// Centralized factory for runtime enemies — applies stage HP/speed scaling and tech reductions.
     /// Does NOT add the enemy to the Enemies list; the caller is responsible for that.
@@ -144,7 +158,7 @@ public class GameEngine
             PathIndex     = Stage.Paths.IndexOf(path),
             ShieldCharges = def.ShieldCharges,
             RegenerateTimer = def.RegenerateInterval,
-            GhostTimer    = def.GhostCycle
+            GlobalSpeedBonusTimer = def.GlobalSpeedBonusInterval
         };
     }
 
@@ -178,6 +192,9 @@ public class GameEngine
 
             if (source.Def.GlobalSpeedBonus > 0)
             {
+                if (source.Def.GlobalSpeedBonusInterval > 0 && source.GlobalSpeedBonusActiveTimer <= 0)
+                    continue;
+
                 foreach (var target in Enemies)
                     if (target != source && target.Alive)
                         target.ExternalSpeedBonus += source.Def.GlobalSpeedBonus;
@@ -212,6 +229,7 @@ public class GameEngine
                     if (e.Pos.DistanceTo(ally.Pos) <= e.Def.RegenerateRadius)
                         Heal(ally, ally.MaxHp * e.Def.RegenerateAllyPercent);
                 }
+                SpawnHitEffect(e.Pos, e.Def.RegenerateRadius, "#22C55E");
             }
             return;
         }
@@ -227,6 +245,26 @@ public class GameEngine
                         Heal(ally, e.Def.HealAmount);
             }
         }
+    }
+
+    private static void TickGlobalSpeedBonus(EnemyInstance e, double dt)
+    {
+        if (e.Def.GlobalSpeedBonusInterval <= 0) return;
+
+        e.GlobalSpeedBonusTimer -= dt;
+        if (e.GlobalSpeedBonusTimer <= 0)
+        {
+            do
+            {
+                e.GlobalSpeedBonusTimer += e.Def.GlobalSpeedBonusInterval;
+            }
+            while (e.GlobalSpeedBonusTimer <= 0);
+            e.GlobalSpeedBonusActiveTimer = e.Def.GlobalSpeedBonusDuration;
+            return;
+        }
+
+        if (e.GlobalSpeedBonusActiveTimer > 0)
+            e.GlobalSpeedBonusActiveTimer = Math.Max(0, e.GlobalSpeedBonusActiveTimer - dt);
     }
 
     private static void Heal(EnemyInstance enemy, double amount)

@@ -78,39 +78,41 @@ public static class StageCatalog
         EnemyKind? ExtraKind = null,
         int ExtraCount = 0,
         EnemyKind? MidBoss = null,
-        EnemyKind? Boss = null);
+        EnemyKind? Boss = null,
+        EnemyKind? ExtraKind2 = null,
+        int ExtraCount2 = 0);
 
     private static readonly StageComposition[] StageCompositions =
     {
-        new(4, 0, 0, 0, 0),
-        new(5, 3, 0, 0, 0),
-        new(6, 4, 2, 0, 0, MidBoss: EnemyKind.MidBossNormal),
-        new(7, 5, 2, 1, 0),
-        new(8, 6, 3, 1, 0, Boss: EnemyKind.BossNormal),
-        new(5, 3, 0, 0, 0),
-        new(6, 4, 2, 0, 0),
-        new(7, 5, 3, 1, 1, MidBoss: EnemyKind.MidBossCharge),
-        new(8, 6, 3, 2, 1),
-        new(9, 7, 4, 2, 2, Boss: EnemyKind.BossCharge),
-        new(5, 3, 0, 0, 0),
-        new(6, 4, 2, 1, 0, EnemyKind.EliteRegenerator, 1),
-        new(8, 5, 3, 1, 1, EnemyKind.EliteRegenerator, 1, EnemyKind.MidBossSplit),
-        new(9, 6, 4, 2, 1, EnemyKind.EliteRegenerator, 2),
-        new(10, 7, 4, 2, 2, EnemyKind.EliteRegenerator, 2, Boss: EnemyKind.BossSplit),
-        new(5, 3, 0, 0, 0),
-        new(7, 4, 3, 1, 1, EnemyKind.EliteGhost, 1),
-        new(9, 5, 4, 2, 2, EnemyKind.EliteGhost, 1, EnemyKind.MidBossSpeed),
-        new(10, 6, 5, 2, 2, EnemyKind.EliteGhost, 2),
-        new(12, 8, 5, 3, 3, EnemyKind.EliteGhost, 2, Boss: EnemyKind.BossSpeed)
+        new(28, 14, 4, 1, 1),
+        new(35, 21, 7, 2, 2),
+        new(42, 28, 10, 4, 4, MidBoss: EnemyKind.MidBossNormal),
+        new(49, 35, 13, 4, 4),
+        new(56, 42, 16, 6, 6, Boss: EnemyKind.BossNormal),
+        new(35, 21, 7, 2, 1),
+        new(42, 28, 10, 4, 2, EnemyKind.EliteRegenerator, 3),
+        new(49, 35, 13, 4, 4, EnemyKind.EliteRegenerator, 4, EnemyKind.MidBossCharge),
+        new(56, 42, 16, 6, 4, EnemyKind.EliteRegenerator, 4),
+        new(63, 49, 19, 6, 6, EnemyKind.EliteRegenerator, 6, Boss: EnemyKind.BossCharge),
+        new(35, 21, 10, 2, 2),
+        new(42, 28, 10, 4, 3, EnemyKind.EliteWyvern, 3, ExtraKind2: EnemyKind.EliteRegenerator, ExtraCount2: 3),
+        new(49, 35, 13, 4, 4, EnemyKind.EliteWyvern, 4, MidBoss: EnemyKind.MidBossSplit, ExtraKind2: EnemyKind.EliteRegenerator, ExtraCount2: 4),
+        new(56, 42, 16, 6, 4, EnemyKind.EliteWyvern, 4, ExtraKind2: EnemyKind.EliteRegenerator, ExtraCount2: 4),
+        new(63, 49, 19, 6, 6, EnemyKind.EliteWyvern, 6, Boss: EnemyKind.BossSplit, ExtraKind2: EnemyKind.EliteRegenerator, ExtraCount2: 6),
+        new(35, 21, 10, 4, 3),
+        new(42, 28, 10, 4, 4, EnemyKind.EliteWyvern, 3),
+        new(49, 35, 13, 4, 4, EnemyKind.EliteWyvern, 4, MidBoss: EnemyKind.MidBossSpeed),
+        new(56, 42, 16, 6, 6, EnemyKind.EliteWyvern, 4),
+        new(63, 49, 19, 6, 7, EnemyKind.EliteWyvern, 6, Boss: EnemyKind.BossSpeed)
     };
 
     private static readonly double[] WaveTimes = { 22, 23, 24, 25, 26, 27, 28, 30 };
-    private static readonly int[] NormalWaves = { 0, 1, 2, 7 };
-    private static readonly int[] FastWaves = { 1, 2, 5, 7 };
-    private static readonly int[] SplitWaves = { 2, 3, 7 };
-    private static readonly int[] EliteWaves = { 3, 6, 7 };
-    private static readonly int[] EliteChargeWaves = { 4, 6, 7 };
-    private static readonly int[] ExtraWaves = { 5, 7 };
+    private static readonly int[] NormalWaves = { 0, 1, 2,3,4,5,6,7 };
+    private static readonly int[] FastWaves = { 1, 2,3,4,5,6,7 };
+    private static readonly int[] SplitWaves = { 1,2, 3,4,5,6, 7 };
+    private static readonly int[] EliteWaves = {4,5,6,7 };
+    private static readonly int[] EliteChargeWaves = {4,5, 6, 7 };
+    private static readonly int[] ExtraWaves = {4,5,6, 7 };
 
     public static readonly List<StageDef> Stages = Build();
 
@@ -129,6 +131,9 @@ public static class StageCatalog
 
         if (plan.ExtraKind != null)
             Distribute(waves, plan.ExtraKind.Value, plan.ExtraCount, ExtraWaves, interval * 1.8, pathCount);
+
+        if (plan.ExtraKind2 != null)
+            Distribute(waves, plan.ExtraKind2.Value, plan.ExtraCount2, ExtraWaves, interval * 1.8, pathCount);
 
         if (plan.MidBoss != null)
             AddCount(waves[7], plan.MidBoss.Value, 1, 1.0, 0, 6);

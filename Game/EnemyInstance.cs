@@ -19,30 +19,36 @@ public class EnemyInstance
     public double DotDps;
     public double HealTimer;
     public double RegenerateTimer;
+    public double GlobalSpeedBonusTimer;
+    public double GlobalSpeedBonusActiveTimer;
     public int ShieldCharges;
     public bool ChargeTriggered;
     public double ChargeTimer;
-    public double GhostTimer;
-    public double GhostInvincibleTimer;
-    public bool IsInvincible;
     public bool Alive = true;
     public bool ReachedBase;
     public Soldier? EngagedBy;
     public double EngageTimer;
     public int PathIndex;
+    public bool IsWyvern => Def.Kind == EnemyKind.EliteWyvern;
+    public bool CanCharge => Def.ChargeSpeedMultiplier > 1;
+    public double EffectivePhysicalResist => Def.PhysicalResist + (ChargeTriggered ? Def.ChargePhysicalResistBonus : 0.0);
 
     public void Tick(double dt)
     {
         if (!Alive) return;
 
-        TickGhost(dt);
-
         if (DotTimer > 0)
         {
-            if (!IsInvincible)
-                Hp -= DotDps * dt;
+            Hp -= DotDps * dt;
             DotTimer -= dt;
             if (Hp <= 0) { Alive = false; return; }
+        }
+        UpdateChargeState();
+
+        if (IsWyvern && EngagedBy != null)
+        {
+            EngagedBy.Target = null;
+            EngagedBy = null;
         }
 
         if (EngagedBy != null && EngagedBy.Alive)
@@ -59,15 +65,13 @@ public class EnemyInstance
         EngagedBy = null;
 
         double effSpeed = Speed * (1 + ExternalSpeedBonus);
-        if (Def.ChargeSpeedMultiplier > 1
-            && !ChargeTriggered
-            && Hp <= MaxHp * Def.ChargeHpThreshold)
-        {
-            ChargeTriggered = true;
-            ChargeTimer = Def.ChargeDuration;
-        }
+        UpdateChargeState();
 
-        if (ChargeTimer > 0)
+        if (Def.ChargeSpeedPersists && ChargeTriggered)
+        {
+            effSpeed *= Def.ChargeSpeedMultiplier;
+        }
+        else if (ChargeTimer > 0)
         {
             effSpeed *= Def.ChargeSpeedMultiplier;
             ChargeTimer -= dt;
@@ -105,9 +109,11 @@ public class EnemyInstance
     {
         if (dmg <= 0 || !Alive) return;
 
+        if (IsWyvern && type == DamageType.Explosive) return;
+        UpdateChargeState();
+
         if (type != DamageType.True)
         {
-            if (IsInvincible) return;
             if (ShieldCharges > 0)
             {
                 ShieldCharges--;
@@ -117,13 +123,14 @@ public class EnemyInstance
 
         double mult = type switch
         {
-            DamageType.Physical => 1.0 - Def.PhysicalResist,
+            DamageType.Physical => 1.0 - EffectivePhysicalResist,
             DamageType.Magic => 1.0 - Def.MagicResist,
-            DamageType.Explosive => 1.0 - Def.PhysicalResist * 0.5,
+            DamageType.Explosive => 1.0 - EffectivePhysicalResist * 0.5,
             _ => 1.0
         };
         Hp -= dmg * mult;
         if (Hp <= 0) Alive = false;
+        else UpdateChargeState();
     }
 
     public void ApplySlow(double amount, double duration)
@@ -143,25 +150,11 @@ public class EnemyInstance
         DotTimer = duration;
     }
 
-    private void TickGhost(double dt)
+    private void UpdateChargeState()
     {
-        IsInvincible = false;
-        if (Def.GhostCycle <= 0 || Def.GhostDuration <= 0) return;
+        if (!CanCharge || ChargeTriggered || Hp > MaxHp * Def.ChargeHpThreshold) return;
 
-        if (GhostInvincibleTimer > 0)
-        {
-            IsInvincible = true;
-            GhostInvincibleTimer -= dt;
-            if (GhostInvincibleTimer <= 0)
-                GhostTimer = Def.GhostCycle;
-            return;
-        }
-
-        GhostTimer -= dt;
-        if (GhostTimer <= 0)
-        {
-            GhostInvincibleTimer = Def.GhostDuration;
-            IsInvincible = true;
-        }
+        ChargeTriggered = true;
+        ChargeTimer = Def.ChargeSpeedPersists ? 0 : Def.ChargeDuration;
     }
 }

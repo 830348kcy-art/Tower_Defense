@@ -47,7 +47,7 @@ public enum EnemyKind
     Elite,
     EliteCharge,
     EliteRegenerator,
-    EliteGhost,
+    EliteWyvern,
     MidBossNormal,
     MidBossCharge,
     MidBossSplit,
