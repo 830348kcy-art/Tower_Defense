@@ -24,4 +24,19 @@ public class EnemyDef
     public List<EnemyKind> DeathSpawns = new();
     public bool IsBoss;
     public bool IsMidBoss;
+    public int ShieldCharges;
+    public double AuraSpeedBonus;
+    public double AuraRadius;
+    public double GlobalSpeedBonus;
+    public double GlobalSpeedBonusInterval;
+    public double GlobalSpeedBonusDuration;
+    public double ChargeHpThreshold = 0.5;
+    public double ChargeSpeedMultiplier;
+    public double ChargeDuration;
+    public double ChargePhysicalResistBonus = 0.10;
+    public bool ChargeSpeedPersists;
+    public double RegenerateSelfPercent;
+    public double RegenerateAllyPercent;
+    public double RegenerateInterval;
+    public double RegenerateRadius;
 }

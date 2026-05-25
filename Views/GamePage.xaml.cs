@@ -31,7 +31,7 @@ public partial class GamePage : Page
 
     // ─── Shape caches ────────────────────────────────────────────────────
     private readonly Dictionary<TowerInstance,  FrameworkElement>                              _towerShapes   = new();
-    private readonly Dictionary<EnemyInstance,  (Image body, Rectangle hpBg, Rectangle hpFg)> _enemyShapes = new();
+    private readonly Dictionary<EnemyInstance,  (FrameworkElement body, Rectangle hpBg, Rectangle hpFg)> _enemyShapes = new();
     private readonly Dictionary<Projectile,     Shape>                                          _projShapes   = new();
     private readonly Dictionary<HitEffect,      Ellipse>                                        _fxShapes     = new();
     private readonly Dictionary<Soldier,        (Rectangle body, Rectangle hp)>                 _soldierShapes= new();
@@ -45,6 +45,7 @@ public partial class GamePage : Page
     private SkillMode      _skillMode = SkillMode.None;
     private Ellipse?       _skillIndicator;
     private bool           _resultShown;
+    private bool           _blockingOverlayActive;
 
     // ─── HUD state ───────────────────────────────────────────────────────
     private int    _lastLives;
@@ -469,6 +470,12 @@ public partial class GamePage : Page
     }
 
     // ── Enemies ─────────────────────────────────────────────────────────
+    private const double EnemyDisplayScale = 1.5;
+
+    public static double EnemySpriteSizeFor(EnemyDef def) => def.Radius * 2.4 * EnemyDisplayScale;
+
+    public static double EnemyHealthBarWidthFor(EnemyDef def) => def.Radius * 2 * EnemyDisplayScale;
+
     private void RenderEnemies()
     {
         // Remove dead enemies
@@ -485,25 +492,18 @@ public partial class GamePage : Page
         {
             if (!_enemyShapes.ContainsKey(e))
             {
-                double spriteSize = e.Def.Radius * 2.4;
-                var body = new Image
-                {
-                    Width            = spriteSize,
-                    Height           = spriteSize,
-                    Source           = EnemyFallbackImageFactory.CreateSprite(e.Def.Kind),
-                    Stretch          = Stretch.Uniform,
-                    IsHitTestVisible = false
-                };
-                double barWidth = e.Def.Radius * 2;
+                double spriteSize = EnemySpriteSizeFor(e.Def);
+                var body = EnemyFallbackImageFactory.CreateSpriteVisual(e.Def.Kind, spriteSize);
+                double initialBarWidth = EnemyHealthBarWidthFor(e.Def);
                 var hpBg = new Rectangle
                 {
-                    Width = barWidth, Height = 5,
+                    Width = initialBarWidth, Height = 5,
                     Fill  = new SolidColorBrush(Color.FromRgb(30, 30, 30)),
                     IsHitTestVisible = false
                 };
                 var hpFg = new Rectangle
                 {
-                    Width = barWidth, Height = 5,
+                    Width = initialBarWidth, Height = 5,
                     Fill  = Brushes.LimeGreen,
                     IsHitTestVisible = false
                 };
@@ -514,21 +514,22 @@ public partial class GamePage : Page
             }
 
             var sh = _enemyShapes[e];
-            double r  = e.Def.Radius;
-            double bx = e.Pos.X - r;
-            double by = e.Pos.Y - r;
+            double spriteHeight = EnemySpriteSizeFor(e.Def);
+            double barWidth = EnemyHealthBarWidthFor(e.Def);
+            double bx = e.Pos.X - barWidth / 2;
+            double by = e.Pos.Y - spriteHeight / 2 - 9;
 
             Canvas.SetLeft(sh.body, e.Pos.X - sh.body.Width / 2);
             Canvas.SetTop (sh.body, e.Pos.Y - sh.body.Height / 2);
-            Canvas.SetLeft(sh.hpBg, bx); Canvas.SetTop(sh.hpBg, by - 9);
-            Canvas.SetLeft(sh.hpFg, bx); Canvas.SetTop(sh.hpFg, by - 9);
+            Canvas.SetLeft(sh.hpBg, bx); Canvas.SetTop(sh.hpBg, by);
+            Canvas.SetLeft(sh.hpFg, bx); Canvas.SetTop(sh.hpFg, by);
 
             // HP bar width + color gradient
             double ratio = Math.Max(0, e.Hp / e.MaxHp);
-            sh.hpFg.Width = e.Def.Radius * 2 * ratio;
+            sh.hpFg.Width = barWidth * ratio;
             sh.hpFg.Fill  = HpBarBrush(ratio);
 
-            // Status tint (Image has no Stroke; convey via Opacity)
+            // Status tint
             if (e.SlowTimer > 0)      sh.body.Opacity = 0.65;   // frozen / slowed
             else if (e.DotTimer > 0)  sh.body.Opacity = 0.85;   // burning
             else                      sh.body.Opacity = 1.0;
@@ -712,15 +713,23 @@ public partial class GamePage : Page
 
     private static string EnemyIcon(EnemyKind k) => k switch
     {
-        EnemyKind.GoblinSoldier => "👺",
-        EnemyKind.GoblinScout   => "🏃",
-        EnemyKind.OrcWarrior    => "🪖",
-        EnemyKind.Wyvern        => "🐉",
-        EnemyKind.TrollShaman   => "🧙",
-        EnemyKind.DarkKnight    => "⚔",
-        EnemyKind.MidBoss       => "👹",
-        EnemyKind.Boss          => "💀",
-        _                       => "?"
+        EnemyKind.Normal           => "N",
+        EnemyKind.Fast             => "F",
+        EnemyKind.SplitBody        => "S",
+        EnemyKind.SplitSmall       => "s",
+        EnemyKind.Elite            => "E",
+        EnemyKind.EliteCharge      => "EC",
+        EnemyKind.EliteRegenerator => "ER",
+        EnemyKind.EliteWyvern      => "WY",
+        EnemyKind.MidBossNormal    => "MN",
+        EnemyKind.MidBossCharge    => "MC",
+        EnemyKind.MidBossSplit     => "MS",
+        EnemyKind.MidBossSpeed     => "MV",
+        EnemyKind.BossNormal       => "BN",
+        EnemyKind.BossCharge       => "BC",
+        EnemyKind.BossSplit        => "BS",
+        EnemyKind.BossSpeed        => "BV",
+        _                          => "?"
     };
 
     // ─── INTERACTION ─────────────────────────────────────────────────────
@@ -947,6 +956,18 @@ public partial class GamePage : Page
         OverlayContent.Content = panel;
     }
 
+    private void ShowBlockingOverlay(FrameworkElement content)
+    {
+        if (!_blockingOverlayActive)
+        {
+            _engine.BeginTemporaryPause();
+            _blockingOverlayActive = true;
+        }
+
+        Overlay.Visibility = Visibility.Visible;
+        OverlayContent.Content = content;
+    }
+
     private void ClearSelection()
     {
         _selectedTower = null;
@@ -957,6 +978,11 @@ public partial class GamePage : Page
         }
         Overlay.Visibility     = Visibility.Collapsed;
         OverlayContent.Content = null;
+        if (_blockingOverlayActive)
+        {
+            _engine.EndTemporaryPause();
+            _blockingOverlayActive = false;
+        }
     }
 
     private void ClearSkillIndicator()
@@ -1054,8 +1080,7 @@ public partial class GamePage : Page
             btns.Children.Add(next);
             btns.Children.Add(skip);
             panel.Children.Add(btns);
-            Overlay.Visibility     = Visibility.Visible;
-            OverlayContent.Content = border;
+            ShowBlockingOverlay(border);
         };
         show();
     }
@@ -1067,77 +1092,375 @@ public partial class GamePage : Page
     /// </summary>
     private void ShowStageIntro()
     {
-        var panel = new StackPanel
+        var entries = StageIntroEnemyInfoBuilder.Build(_stage).ToList();
+        var rowBorders = new Dictionary<EnemyKind, Border>();
+        var detailHost = new ContentControl();
+        var listStack = new StackPanel();
+        Border? newTab = null;
+        Border? returningTab = null;
+
+        var panel = new Grid
         {
-            Background = new SolidColorBrush(Color.FromRgb(18, 22, 30)),
-            Width = 560
+            Width = 838,
+            Background = new SolidColorBrush(Color.FromRgb(248, 250, 252))
         };
+        panel.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        panel.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        panel.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        panel.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+
         var border = new Border
         {
             Child = panel,
-            BorderBrush = new SolidColorBrush(Color.FromRgb(200, 160, 0)),
-            BorderThickness = new Thickness(1.5),
-            CornerRadius = new CornerRadius(8)
+            Background = panel.Background,
+            BorderBrush = new SolidColorBrush(Color.FromRgb(15, 23, 42)),
+            BorderThickness = new Thickness(2),
+            CornerRadius = new CornerRadius(6)
         };
 
-        panel.Children.Add(new TextBlock
+        var header = new Grid { Margin = new Thickness(22, 22, 22, 10) };
+        header.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        header.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        var titleStack = new StackPanel();
+        titleStack.Children.Add(new TextBlock
         {
-            Text = $"스테이지 {_stage.Number}  ·  {_stage.Name}",
-            FontSize = 24, FontWeight = FontWeights.Bold,
-            Foreground = Brushes.Gold,
-            HorizontalAlignment = HorizontalAlignment.Center,
-            Margin = new Thickness(20, 20, 20, 4)
+            Text = $"Stage {_stage.Number}",
+            FontSize = 30,
+            FontWeight = FontWeights.Bold,
+            Foreground = new SolidColorBrush(Color.FromRgb(15, 23, 42))
         });
-        panel.Children.Add(new TextBlock
+        titleStack.Children.Add(new TextBlock
         {
-            Text = "출현 예정 적",
-            FontSize = 13, Foreground = Brushes.LightGray,
-            HorizontalAlignment = HorizontalAlignment.Center,
-            Margin = new Thickness(0, 0, 0, 12)
+            Text = StageIntroEnemyInfoBuilder.StageSubtitle(_stage),
+            FontSize = 13,
+            Foreground = new SolidColorBrush(Color.FromRgb(71, 85, 105)),
+            Margin = new Thickness(0, 6, 0, 0)
         });
-
-        var wrap = new WrapPanel
+        header.Children.Add(titleStack);
+        var chapterStart = new TextBlock
         {
-            Margin = new Thickness(16, 0, 16, 8),
-            HorizontalAlignment = HorizontalAlignment.Center
+            Text = "챕터 시작",
+            FontSize = 14,
+            FontWeight = FontWeights.Bold,
+            Foreground = new SolidColorBrush(Color.FromRgb(185, 28, 28)),
+            VerticalAlignment = VerticalAlignment.Center
         };
-        var seen = new HashSet<EnemyKind>();
-        foreach (var entry in _stage.Waves.SelectMany(w => w.Entries))
-        {
-            if (!seen.Add(entry.Enemy)) continue;
-            var def  = EnemyCatalog.Enemies[entry.Enemy];
-            var item = new StackPanel
-            {
-                Width = 100, Margin = new Thickness(6),
-                HorizontalAlignment = HorizontalAlignment.Center
-            };
-            item.Children.Add(new Image
-            {
-                Source = EnemyFallbackImageFactory.CreateIcon(entry.Enemy),
-                Width = 58, Height = 58, Stretch = Stretch.Uniform,
-                HorizontalAlignment = HorizontalAlignment.Center
-            });
-            item.Children.Add(new TextBlock
-            {
-                Text = def.Name,
-                Foreground = Brushes.White,
-                FontSize = 11,
-                TextAlignment = TextAlignment.Center,
-                TextWrapping = TextWrapping.Wrap,
-                Margin = new Thickness(0, 4, 0, 0)
-            });
-            wrap.Children.Add(item);
-        }
-        panel.Children.Add(wrap);
+        Grid.SetColumn(chapterStart, 1);
+        header.Children.Add(chapterStart);
+        Grid.SetRow(header, 0);
+        panel.Children.Add(header);
 
-        var start = MakeButton("시작 ▶", 130, 36, "#1B6B2A");
-        start.HorizontalAlignment = HorizontalAlignment.Center;
-        start.Margin = new Thickness(0, 12, 0, 22);
+        var notice = new Border
+        {
+            Background = new SolidColorBrush(Color.FromRgb(224, 242, 254)),
+            BorderBrush = new SolidColorBrush(Color.FromRgb(125, 211, 252)),
+            BorderThickness = new Thickness(1),
+            CornerRadius = new CornerRadius(5),
+            Padding = new Thickness(14, 10, 14, 10),
+            Margin = new Thickness(22, 4, 22, 18),
+            Child = new TextBlock
+            {
+                Text = "새 챕터 체력 배율이 적용됩니다. HP 배율은 챕터 동안 유지됩니다.",
+                FontSize = 13,
+                Foreground = new SolidColorBrush(Color.FromRgb(3, 105, 161))
+            }
+        };
+        Grid.SetRow(notice, 1);
+        panel.Children.Add(notice);
+
+        var content = new Grid { Margin = new Thickness(22, 0, 22, 18) };
+        content.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(505) });
+        content.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(18) });
+        content.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(270) });
+
+        var left = new StackPanel();
+        var tabs = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 0) };
+        newTab = MakeStageIntroTab("신규");
+        returningTab = MakeStageIntroTab("재등장");
+        newTab.MouseLeftButtonDown += (_, _) => ShowEnemyTab(true);
+        returningTab.MouseLeftButtonDown += (_, _) => ShowEnemyTab(false);
+        tabs.Children.Add(newTab);
+        tabs.Children.Add(returningTab);
+        left.Children.Add(tabs);
+
+        left.Children.Add(new Border
+        {
+            Background = Brushes.White,
+            BorderBrush = new SolidColorBrush(Color.FromRgb(203, 213, 225)),
+            BorderThickness = new Thickness(1),
+            CornerRadius = new CornerRadius(4),
+            Child = new ScrollViewer
+            {
+                Height = 282,
+                VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+                Content = listStack
+            }
+        });
+        content.Children.Add(left);
+
+        var detailBorder = new Border
+        {
+            Background = Brushes.White,
+            BorderBrush = new SolidColorBrush(Color.FromRgb(203, 213, 225)),
+            BorderThickness = new Thickness(1),
+            CornerRadius = new CornerRadius(5),
+            Padding = new Thickness(16),
+            Child = detailHost
+        };
+        Grid.SetColumn(detailBorder, 2);
+        content.Children.Add(detailBorder);
+        Grid.SetRow(content, 2);
+        panel.Children.Add(content);
+
+        var footer = new Grid { Margin = new Thickness(22, 0, 22, 22) };
+        footer.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        footer.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        footer.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+
+        var start = MakeButton("스테이지 시작", 160, 40, "#58AF55");
+        start.HorizontalContentAlignment = HorizontalAlignment.Center;
         start.Click += (s, e) => ClearSelection();
-        panel.Children.Add(start);
+        Grid.SetColumn(start, 1);
+        footer.Children.Add(start);
+        Grid.SetRow(footer, 3);
+        panel.Children.Add(footer);
 
-        Overlay.Visibility     = Visibility.Visible;
-        OverlayContent.Content = border;
+        bool defaultToNewTab = entries.Any(entry => entry.IsNewAppearance);
+        ShowEnemyTab(defaultToNewTab);
+
+        ShowBlockingOverlay(border);
+
+        Border MakeStageIntroTab(string text)
+            => new()
+            {
+                Child = new TextBlock
+                {
+                    Text = text,
+                    FontSize = 12,
+                    Foreground = new SolidColorBrush(Color.FromRgb(15, 23, 42)),
+                    Margin = new Thickness(8, 4, 8, 4)
+                },
+                Background = Brushes.White,
+                BorderBrush = new SolidColorBrush(Color.FromRgb(148, 163, 184)),
+                BorderThickness = new Thickness(1),
+                Margin = new Thickness(0, 0, 2, -1),
+                Cursor = Cursors.Hand
+            };
+
+        Border MakeStageIntroEnemyRow(StageIntroEnemyInfo info)
+        {
+            var icon = EnemyFallbackImageFactory.CreateIconVisual(info.Kind, 46);
+            icon.HorizontalAlignment = HorizontalAlignment.Center;
+            icon.VerticalAlignment = VerticalAlignment.Center;
+
+            var textStack = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
+            textStack.Children.Add(new TextBlock
+            {
+                Text = info.Name,
+                FontSize = 15,
+                FontWeight = FontWeights.Bold,
+                Foreground = new SolidColorBrush(Color.FromRgb(15, 23, 42))
+            });
+            textStack.Children.Add(new TextBlock
+            {
+                Text = info.CodeName,
+                FontSize = 12,
+                Foreground = new SolidColorBrush(Color.FromRgb(71, 85, 105)),
+                Margin = new Thickness(0, 3, 0, 0)
+            });
+            textStack.Children.Add(new TextBlock
+            {
+                Text = info.HpText,
+                FontSize = 12,
+                Foreground = new SolidColorBrush(Color.FromRgb(22, 163, 74)),
+                Margin = new Thickness(0, 6, 0, 0)
+            });
+            if (!string.IsNullOrEmpty(info.AbilityText))
+            {
+                textStack.Children.Add(new TextBlock
+                {
+                    Text = info.AbilityText,
+                    FontSize = 11,
+                    Foreground = new SolidColorBrush(Color.FromRgb(37, 99, 235)),
+                    TextWrapping = TextWrapping.Wrap,
+                    Margin = new Thickness(0, 4, 0, 0)
+                });
+            }
+
+            var badge = new Border
+            {
+                Background = new SolidColorBrush(info.IsNewAppearance ? Color.FromRgb(220, 252, 231) : Color.FromRgb(241, 245, 249)),
+                CornerRadius = new CornerRadius(4),
+                Padding = new Thickness(7, 3, 7, 3),
+                HorizontalAlignment = HorizontalAlignment.Right,
+                VerticalAlignment = VerticalAlignment.Top,
+                Child = new TextBlock
+                {
+                    Text = info.IsNewAppearance ? "신규" : "재등장",
+                    FontSize = 11,
+                    Foreground = new SolidColorBrush(info.IsNewAppearance ? Color.FromRgb(21, 128, 61) : Color.FromRgb(71, 85, 105))
+                }
+            };
+
+            var rowGrid = new Grid();
+            rowGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(64) });
+            rowGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            rowGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            rowGrid.Children.Add(new Border
+            {
+                Width = 48,
+                Height = 48,
+                Background = new SolidColorBrush(Color.FromRgb(239, 246, 255)),
+                BorderBrush = new SolidColorBrush(Color.FromRgb(191, 219, 254)),
+                BorderThickness = new Thickness(1.5),
+                CornerRadius = new CornerRadius(6),
+                Child = icon
+            });
+            Grid.SetColumn(textStack, 1);
+            rowGrid.Children.Add(textStack);
+            Grid.SetColumn(badge, 2);
+            rowGrid.Children.Add(badge);
+
+            return new Border
+            {
+                Child = rowGrid,
+                Background = Brushes.White,
+                BorderBrush = new SolidColorBrush(Color.FromRgb(226, 232, 240)),
+                BorderThickness = new Thickness(1),
+                CornerRadius = new CornerRadius(5),
+                Padding = new Thickness(12, 10, 12, 10),
+                Margin = new Thickness(8, 8, 8, 0),
+                Cursor = Cursors.Hand
+            };
+        }
+
+        FrameworkElement MakeStageIntroDetail(StageIntroEnemyInfo info)
+        {
+            var icon = EnemyFallbackImageFactory.CreateIconVisual(info.Kind, 92);
+            icon.HorizontalAlignment = HorizontalAlignment.Center;
+            icon.VerticalAlignment = VerticalAlignment.Center;
+
+            var stack = new StackPanel();
+            stack.Children.Add(new Border
+            {
+                Width = 112,
+                Height = 112,
+                Background = new SolidColorBrush(Color.FromRgb(239, 246, 255)),
+                BorderBrush = new SolidColorBrush(Color.FromRgb(191, 219, 254)),
+                BorderThickness = new Thickness(3),
+                CornerRadius = new CornerRadius(12),
+                Child = icon,
+                HorizontalAlignment = HorizontalAlignment.Left
+            });
+            stack.Children.Add(new TextBlock
+            {
+                Text = info.Name,
+                FontSize = 18,
+                FontWeight = FontWeights.Bold,
+                Foreground = new SolidColorBrush(Color.FromRgb(15, 23, 42)),
+                Margin = new Thickness(0, 16, 0, 0)
+            });
+            stack.Children.Add(new TextBlock
+            {
+                Text = info.CodeName,
+                FontSize = 12,
+                Foreground = new SolidColorBrush(Color.FromRgb(71, 85, 105)),
+                Margin = new Thickness(0, 6, 0, 0)
+            });
+            stack.Children.Add(new TextBlock
+            {
+                Text = info.HpText,
+                FontSize = 13,
+                FontWeight = FontWeights.Bold,
+                Foreground = new SolidColorBrush(Color.FromRgb(22, 163, 74)),
+                Margin = new Thickness(0, 16, 0, 0)
+            });
+            stack.Children.Add(new TextBlock
+            {
+                Text = info.SpeedText,
+                FontSize = 13,
+                Foreground = new SolidColorBrush(Color.FromRgb(51, 65, 85)),
+                Margin = new Thickness(0, 10, 0, 0)
+            });
+            stack.Children.Add(new TextBlock
+            {
+                Text = string.IsNullOrEmpty(info.AbilityText) ? "특수 능력 없음" : info.AbilityText,
+                FontSize = 13,
+                Foreground = new SolidColorBrush(string.IsNullOrEmpty(info.AbilityText)
+                    ? Color.FromRgb(100, 116, 139)
+                    : Color.FromRgb(37, 99, 235)),
+                TextWrapping = TextWrapping.Wrap,
+                Margin = new Thickness(0, 12, 0, 0)
+            });
+            stack.Children.Add(new TextBlock
+            {
+                Text = info.IsNewAppearance ? "이번 스테이지 신규 등장" : "이전 스테이지에서 재등장",
+                FontSize = 12,
+                Foreground = new SolidColorBrush(Color.FromRgb(100, 116, 139)),
+                Margin = new Thickness(0, 14, 0, 0)
+            });
+
+            return stack;
+        }
+
+        void ShowEnemyTab(bool showNew)
+        {
+            rowBorders.Clear();
+            listStack.Children.Clear();
+
+            SetTabSelected(newTab, showNew);
+            SetTabSelected(returningTab, !showNew);
+
+            var visibleEntries = (showNew
+                ? StageIntroEnemyInfoBuilder.BuildNew(_stage)
+                : StageIntroEnemyInfoBuilder.BuildReturning(_stage)).ToList();
+
+            foreach (var info in visibleEntries)
+            {
+                var row = MakeStageIntroEnemyRow(info);
+                rowBorders[info.Kind] = row;
+                row.MouseLeftButtonDown += (_, _) => SelectEnemy(info);
+                listStack.Children.Add(row);
+            }
+
+            if (visibleEntries.Count == 0)
+            {
+                listStack.Children.Add(new TextBlock
+                {
+                    Text = showNew ? "이번 스테이지 신규 적이 없습니다." : "이번 스테이지 재등장 적이 없습니다.",
+                    Foreground = new SolidColorBrush(Color.FromRgb(71, 85, 105)),
+                    Margin = new Thickness(16),
+                    FontSize = 14
+                });
+                detailHost.Content = new TextBlock { Text = "정보 없음", Foreground = Brushes.Gray };
+                return;
+            }
+
+            SelectEnemy(visibleEntries[0]);
+        }
+
+        void SetTabSelected(Border? tab, bool selected)
+        {
+            if (tab == null) return;
+            tab.Background = new SolidColorBrush(selected ? Color.FromRgb(207, 239, 255) : Color.FromRgb(255, 255, 255));
+            tab.BorderBrush = new SolidColorBrush(selected ? Color.FromRgb(56, 189, 248) : Color.FromRgb(148, 163, 184));
+            if (tab.Child is TextBlock text)
+            {
+                text.FontWeight = selected ? FontWeights.Bold : FontWeights.Normal;
+                text.Foreground = new SolidColorBrush(selected ? Color.FromRgb(3, 105, 161) : Color.FromRgb(15, 23, 42));
+            }
+        }
+
+        void SelectEnemy(StageIntroEnemyInfo info)
+        {
+            foreach (var (kind, row) in rowBorders)
+            {
+                bool selected = kind == info.Kind;
+                row.Background = new SolidColorBrush(selected ? Color.FromRgb(207, 239, 255) : Color.FromRgb(255, 255, 255));
+                row.BorderBrush = new SolidColorBrush(selected ? Color.FromRgb(125, 211, 252) : Color.FromRgb(226, 232, 240));
+            }
+            detailHost.Content = MakeStageIntroDetail(info);
+        }
     }
 
     // ─── RESULT SCREEN ───────────────────────────────────────────────────

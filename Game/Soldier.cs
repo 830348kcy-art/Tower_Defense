@@ -33,14 +33,14 @@ public class Soldier
             return;
         }
 
-        if (Target != null && (!Target.Alive || Target.EngagedBy != this))
+        if (Target != null && (!Target.Alive || Target.EngagedBy != this || Target.IsWyvern))
             Target = null;
 
         if (Target == null)
         {
             foreach (var e in game.Enemies)
             {
-                if (!e.Alive || e.Def.IsFlying || e.EngagedBy != null) continue;
+                if (!e.Alive || e.Def.IsFlying || e.IsWyvern || e.EngagedBy != null) continue;
                 if (Pos.DistanceTo(e.Pos) < EngageRadius + 25)
                 {
                     Target = e;

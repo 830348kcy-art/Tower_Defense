@@ -6,308 +6,255 @@ namespace KingdomRushClone.Data;
 
 public static class StageCatalog
 {
-    public const double MapWidth  = 1100;
+    public const double MapWidth = 1100;
     public const double MapHeight = 620;
 
-    // ─── Stage theme ───────────────────────────────────────────────────
-    private static StageTheme ThemeForStage(int n) => n switch
-    {
-        <= 5  => StageTheme.Grassland,
-        <= 10 => StageTheme.Forest,
-        <= 15 => StageTheme.Desert,
-        <= 20 => StageTheme.Volcano,
-        <= 25 => StageTheme.Snow,
-        _     => StageTheme.Castle
-    };
-
-    // ─── Flavored stage names (must come BEFORE Stages = Build()) ──────
     private static readonly string[] StageNames =
     {
-        /* 01 */ "초원의 관문",
-        /* 02 */ "뱀의 협곡",
-        /* 03 */ "강변 요새",
-        /* 04 */ "갈림길",
-        /* 05 */ "초원의 마지막 함성",   // mid-boss
-        /* 06 */ "흑림의 입구",
-        /* 07 */ "나무꾼의 길",
-        /* 08 */ "안개 지대",
-        /* 09 */ "어둠의 계곡",
-        /* 10 */ "숲의 군주",            // boss
-        /* 11 */ "사막의 시작",
-        /* 12 */ "모래 폭풍",
-        /* 13 */ "오아시스 방어",
-        /* 14 */ "낙타 대상의 길",
-        /* 15 */ "사막 황제",            // mid-boss
-        /* 16 */ "용암 지대",
-        /* 17 */ "화산의 분노",
-        /* 18 */ "불타는 협곡",
-        /* 19 */ "재의 도시",
-        /* 20 */ "화염 군주",            // boss
-        /* 21 */ "설원의 입구",
-        /* 22 */ "눈보라 고개",
-        /* 23 */ "얼음 궁전",
-        /* 24 */ "동결된 강",
-        /* 25 */ "설원의 지배자",        // mid-boss
-        /* 26 */ "마지막 성벽",
-        /* 27 */ "왕도의 방어",
-        /* 28 */ "요새 공성",
-        /* 29 */ "왕좌의 방",
-        /* 30 */ "암흑 황제",            // final boss
+        "1구역 관문",
+        "1구역 들길",
+        "1구역 경계",
+        "1구역 외곽",
+        "1구역 지휘관",
+        "2구역 입구",
+        "2구역 굽은 길",
+        "2구역 돌진 지점",
+        "2구역 강변",
+        "2구역 지휘관",
+        "3구역 통로",
+        "3구역 모래길",
+        "3구역 분열 지점",
+        "3구역 능선",
+        "3구역 지휘관",
+        "4구역 잿길",
+        "4구역 교차로",
+        "4구역 속도 지점",
+        "4구역 성벽",
+        "4구역 최종 지휘관"
     };
 
-    public static readonly List<StageDef> Stages = Build();
+    private static int ChapterFor(int stage) => ((stage - 1) / 5) + 1;
 
-    // ─── Path layouts (6 shapes, one per 5-stage block) ─────────────────
-    private static List<List<Vec2>> PathFor(int n)
+    private static int StageInChapter(int stage) => ((stage - 1) % 5) + 1;
+
+    private static StageTheme ThemeForStage(int stage) => ChapterFor(stage) switch
     {
-        if (n <= 5)
-            // Simple straight path
-            return new() { new() { new(40, 310), new(560, 310), new(1060, 310) } };
+        1 => StageTheme.Grassland,
+        2 => StageTheme.Forest,
+        3 => StageTheme.Desert,
+        _ => StageTheme.Volcano
+    };
 
-        if (n <= 10)
-            // S-curve
-            return new() { new()
+    private static List<List<Vec2>> PathFor(int stage)
+    {
+        return ChapterFor(stage) switch
+        {
+            1 => new() { new() { new(40, 310), new(560, 310), new(1060, 310) } },
+            2 => new() { new()
             {
                 new(40, 100), new(300, 100), new(300, 310),
                 new(800, 310), new(800, 520), new(1060, 520)
-            }};
-
-        if (n <= 15)
-            // Two converging paths
-            return new()
+            }},
+            3 => new()
             {
                 new() { new(40, 150), new(400, 150), new(550, 310), new(900, 310), new(1060, 310) },
                 new() { new(40, 470), new(400, 470), new(550, 310), new(900, 310), new(1060, 310) },
-            };
-
-        if (n <= 20)
-            // Zigzag
-            return new() { new()
+            },
+            _ => new() { new()
             {
-                new(40, 80),  new(250, 80),  new(250, 540),
+                new(40, 80), new(250, 80), new(250, 540),
                 new(600, 540), new(600, 120), new(900, 120),
                 new(900, 540), new(1060, 540)
-            }};
-
-        if (n <= 25)
-            // Three paths merging to one exit
-            return new()
-            {
-                new() { new(40, 100), new(550, 100), new(550, 310), new(1060, 310) },
-                new() { new(40, 310), new(1060, 310) },
-                new() { new(40, 520), new(550, 520), new(550, 310), new(1060, 310) },
-            };
-
-        // Four-path cross (stages 26-30)
-        return new()
-        {
-            new() { new(40, 80),  new(400, 80),  new(400, 310), new(700, 310), new(700, 540), new(1060, 540) },
-            new() { new(40, 540), new(400, 540), new(400, 310), new(700, 310), new(700, 80),  new(1060, 80)  },
-            new() { new(40, 200), new(900, 200), new(900, 420), new(1060, 420) },
-            new() { new(40, 420), new(900, 420), new(900, 200), new(1060, 200) },
+            }}
         };
     }
 
-    // ─── Wave generation ────────────────────────────────────────────────
+    private sealed record StageComposition(
+        int Normal,
+        int Fast,
+        int SplitBody,
+        int Elite,
+        int EliteCharge,
+        EnemyKind? ExtraKind = null,
+        int ExtraCount = 0,
+        EnemyKind? MidBoss = null,
+        EnemyKind? Boss = null,
+        EnemyKind? ExtraKind2 = null,
+        int ExtraCount2 = 0);
+
+    private static readonly StageComposition[] StageCompositions =
+    {
+        new(28, 14, 4, 1, 1),
+        new(35, 21, 7, 2, 2),
+        new(42, 28, 10, 4, 4, MidBoss: EnemyKind.MidBossNormal),
+        new(49, 35, 13, 4, 4),
+        new(56, 42, 16, 6, 6, Boss: EnemyKind.BossNormal),
+        new(35, 21, 7, 2, 1),
+        new(42, 28, 10, 4, 2, EnemyKind.EliteRegenerator, 3),
+        new(49, 35, 13, 4, 4, EnemyKind.EliteRegenerator, 4, EnemyKind.MidBossCharge),
+        new(56, 42, 16, 6, 4, EnemyKind.EliteRegenerator, 4),
+        new(63, 49, 19, 6, 6, EnemyKind.EliteRegenerator, 6, Boss: EnemyKind.BossCharge),
+        new(35, 21, 10, 2, 2),
+        new(42, 28, 10, 4, 3, EnemyKind.EliteWyvern, 3, ExtraKind2: EnemyKind.EliteRegenerator, ExtraCount2: 3),
+        new(49, 35, 13, 4, 4, EnemyKind.EliteWyvern, 4, MidBoss: EnemyKind.MidBossSplit, ExtraKind2: EnemyKind.EliteRegenerator, ExtraCount2: 4),
+        new(56, 42, 16, 6, 4, EnemyKind.EliteWyvern, 4, ExtraKind2: EnemyKind.EliteRegenerator, ExtraCount2: 4),
+        new(63, 49, 19, 6, 6, EnemyKind.EliteWyvern, 6, Boss: EnemyKind.BossSplit, ExtraKind2: EnemyKind.EliteRegenerator, ExtraCount2: 6),
+        new(35, 21, 10, 4, 3),
+        new(42, 28, 10, 4, 4, EnemyKind.EliteWyvern, 3),
+        new(49, 35, 13, 4, 4, EnemyKind.EliteWyvern, 4, MidBoss: EnemyKind.MidBossSpeed),
+        new(56, 42, 16, 6, 6, EnemyKind.EliteWyvern, 4),
+        new(63, 49, 19, 6, 7, EnemyKind.EliteWyvern, 6, Boss: EnemyKind.BossSpeed)
+    };
+
+    private static readonly double[] WaveTimes = { 22, 23, 24, 25, 26, 27, 28, 30 };
+    private static readonly int[] NormalWaves = { 0, 1, 2,3,4,5,6,7 };
+    private static readonly int[] FastWaves = { 1, 2,3,4,5,6,7 };
+    private static readonly int[] SplitWaves = { 1,2, 3,4,5,6, 7 };
+    private static readonly int[] EliteWaves = {4,5,6,7 };
+    private static readonly int[] EliteChargeWaves = {4,5, 6, 7 };
+    private static readonly int[] ExtraWaves = {4,5,6, 7 };
+
+    public static readonly List<StageDef> Stages = Build();
+
     private static List<WaveDef> WavesFor(int stage)
     {
-        var rand = new Random(stage * 7919);
-        int waveCount = stage switch { <= 5 => 4, <= 10 => 6, <= 15 => 7, <= 20 => 8, <= 25 => 9, _ => 10 };
         int pathCount = PathFor(stage).Count;
-        double baseInterval = Math.Max(0.30, 0.90 - stage * 0.012);
-        var waves = new List<WaveDef>();
+        double interval = Math.Max(0.35, 0.82 - stage * 0.01);
+        var plan = StageCompositions[stage - 1];
+        var waves = CreateEmptyWaves(plan);
 
-        for (int w = 0; w < waveCount; w++)
-        {
-            double wavePower = 10 + stage * 2.2 + w * 2.8;
-            var wave = new WaveDef { TimeUntilNext = 22 + stage * 0.5 };
+        Distribute(waves, EnemyKind.Normal, plan.Normal, NormalWaves, interval, pathCount);
+        Distribute(waves, EnemyKind.Fast, plan.Fast, FastWaves, interval * 0.75, pathCount);
+        Distribute(waves, EnemyKind.SplitBody, plan.SplitBody, SplitWaves, interval * 1.2, pathCount);
+        Distribute(waves, EnemyKind.Elite, plan.Elite, EliteWaves, interval * 1.6, pathCount);
+        Distribute(waves, EnemyKind.EliteCharge, plan.EliteCharge, EliteChargeWaves, interval * 1.5, pathCount);
 
-            // ── Primary enemy ──
-            EnemyKind primary = PickPrimary(stage, rand);
-            int primaryCount = (int)Math.Max(3, wavePower / EnemyWeight(primary));
-            wave.Entries.Add(new WaveEntry
-            {
-                Enemy         = primary,
-                Count         = primaryCount,
-                SpawnInterval = baseInterval,
-                SpawnPath     = rand.Next(pathCount),
-                InitialDelay  = 0
-            });
+        if (plan.ExtraKind != null)
+            Distribute(waves, plan.ExtraKind.Value, plan.ExtraCount, ExtraWaves, interval * 1.8, pathCount);
 
-            // ── Secondary enemy (waves 2+, increasing chance) ──
-            if (w >= 1 && stage >= 2 && rand.NextDouble() < 0.40 + w * 0.07)
-            {
-                EnemyKind secondary = PickSecondary(primary, stage, rand);
-                int secCount = (int)Math.Max(2, wavePower * 0.45 / EnemyWeight(secondary));
-                wave.Entries.Add(new WaveEntry
-                {
-                    Enemy         = secondary,
-                    Count         = secCount,
-                    SpawnInterval = baseInterval * 1.3,
-                    InitialDelay  = 3 + rand.Next(3),
-                    SpawnPath     = rand.Next(pathCount)
-                });
-            }
+        if (plan.ExtraKind2 != null)
+            Distribute(waves, plan.ExtraKind2.Value, plan.ExtraCount2, ExtraWaves, interval * 1.8, pathCount);
 
-            // ── Tertiary (late stages) ──
-            if (stage >= 15 && w >= 3 && rand.NextDouble() < 0.35)
-            {
-                EnemyKind tertiary = PickPrimary(Math.Max(1, stage - 5), rand);
-                if (tertiary != primary)
-                {
-                    wave.Entries.Add(new WaveEntry
-                    {
-                        Enemy         = tertiary,
-                        Count         = (int)Math.Max(2, wavePower * 0.25 / EnemyWeight(tertiary)),
-                        SpawnInterval = 1.1,
-                        InitialDelay  = 7 + rand.Next(4),
-                        SpawnPath     = rand.Next(pathCount)
-                    });
-                }
-            }
+        if (plan.MidBoss != null)
+            AddCount(waves[7], plan.MidBoss.Value, 1, 1.0, 0, 6);
 
-            waves.Add(wave);
-        }
-
-        // ── Mid-boss wave ──
-        if (HasMidBossFor(stage))
-        {
-            var bw = new WaveDef { TimeUntilNext = 30 };
-            bw.Entries.Add(new WaveEntry { Enemy = EnemyKind.GoblinScout, Count = 8,  SpawnInterval = 0.45, SpawnPath = 0 });
-            if (pathCount > 1)
-                bw.Entries.Add(new WaveEntry { Enemy = EnemyKind.OrcWarrior, Count = 4, SpawnInterval = 0.9, SpawnPath = 1, InitialDelay = 1 });
-            bw.Entries.Add(new WaveEntry { Enemy = MidBossFor(stage), Count = 1, InitialDelay = 4, SpawnPath = 0 });
-            waves.Add(bw);
-        }
-
-        // ── Boss wave ──
-        if (HasBossFor(stage))
-        {
-            var bw = new WaveDef { TimeUntilNext = 40 };
-            bw.Entries.Add(new WaveEntry { Enemy = EnemyKind.OrcWarrior, Count = 10, SpawnInterval = 0.55, SpawnPath = 0 });
-            if (stage >= 20)
-                bw.Entries.Add(new WaveEntry { Enemy = EnemyKind.DarkKnight, Count = 4, SpawnInterval = 1.0, InitialDelay = 3, SpawnPath = pathCount > 1 ? 1 : 0 });
-            bw.Entries.Add(new WaveEntry { Enemy = BossFor(stage), Count = 1, InitialDelay = 6, SpawnPath = 0 });
-            waves.Add(bw);
-        }
+        if (plan.Boss != null)
+            AddCount(waves[7], plan.Boss.Value, 1, 1.0, 0, 8);
 
         return waves;
     }
 
-    // ─── Boss scheduling helpers ────────────────────────────────────────
-    /// <summary>Stage 13 hosts a SplitMidBoss; other multiples of 5 (except boss-stages) host the regular MidBoss.</summary>
-    private static bool HasMidBossFor(int stage) =>
-        stage == 13 || (stage % 5 == 0 && stage % 10 != 0 && stage != 15);
-
-    /// <summary>Stage 15 hosts a SplitBoss; every multiple of 10 hosts the regular Boss.</summary>
-    private static bool HasBossFor(int stage) =>
-        stage == 15 || stage % 10 == 0;
-
-    private static EnemyKind MidBossFor(int stage) =>
-        stage == 13 ? EnemyKind.SplitMidBoss : EnemyKind.MidBoss;
-
-    private static EnemyKind BossFor(int stage) =>
-        stage == 15 ? EnemyKind.SplitBoss : EnemyKind.Boss;
-
-    // ─── Enemy selection helpers ────────────────────────────────────────
-    private static EnemyKind PickPrimary(int stage, Random rand) => stage switch
+    private static List<WaveDef> CreateEmptyWaves(StageComposition plan)
     {
-        <= 2  => EnemyKind.GoblinSoldier,
-        <= 4  => rand.Next(2) == 0 ? EnemyKind.GoblinSoldier : EnemyKind.GoblinScout,
-        <= 7  => rand.Next(3) switch { 0 => EnemyKind.GoblinSoldier, 1 => EnemyKind.GoblinScout, _ => EnemyKind.OrcWarrior },
-        <= 10 => rand.Next(3) switch { 0 => EnemyKind.GoblinScout,   1 => EnemyKind.OrcWarrior,  _ => EnemyKind.Wyvern },
-        <= 14 => rand.Next(3) switch { 0 => EnemyKind.OrcWarrior,    1 => EnemyKind.Wyvern,      _ => EnemyKind.TrollShaman },
-        <= 18 => rand.Next(3) switch { 0 => EnemyKind.Wyvern,        1 => EnemyKind.TrollShaman, _ => EnemyKind.DarkKnight },
-        _     => rand.Next(3) switch { 0 => EnemyKind.TrollShaman,   1 => EnemyKind.DarkKnight,  _ => EnemyKind.OrcWarrior },
-    };
+        var waves = new List<WaveDef>();
+        for (int i = 0; i < WaveTimes.Length; i++)
+            waves.Add(new WaveDef { TimeUntilNext = WaveTimes[i] });
 
-    private static EnemyKind PickSecondary(EnemyKind primary, int stage, Random rand)
-    {
-        var pool = new List<EnemyKind>();
-        if (primary != EnemyKind.GoblinSoldier)                  pool.Add(EnemyKind.GoblinSoldier);
-        if (primary != EnemyKind.GoblinScout  && stage >= 2)     pool.Add(EnemyKind.GoblinScout);
-        if (primary != EnemyKind.OrcWarrior   && stage >= 4)     pool.Add(EnemyKind.OrcWarrior);
-        if (primary != EnemyKind.Wyvern       && stage >= 7)     pool.Add(EnemyKind.Wyvern);
-        if (primary != EnemyKind.TrollShaman  && stage >= 9)     pool.Add(EnemyKind.TrollShaman);
-        if (primary != EnemyKind.DarkKnight   && stage >= 16)    pool.Add(EnemyKind.DarkKnight);
-        return pool.Count == 0 ? EnemyKind.GoblinSoldier : pool[rand.Next(pool.Count)];
+        if (plan.MidBoss != null) waves[7].TimeUntilNext = 34;
+        if (plan.Boss != null) waves[7].TimeUntilNext = 40;
+        return waves;
     }
 
-    /// <summary>Used to scale enemy count based on relative threat value.</summary>
-    private static double EnemyWeight(EnemyKind k) => k switch
-    {
-        EnemyKind.GoblinSoldier => 1.0,
-        EnemyKind.GoblinScout   => 1.3,
-        EnemyKind.OrcWarrior    => 2.8,
-        EnemyKind.Wyvern        => 3.2,
-        EnemyKind.TrollShaman   => 3.8,
-        EnemyKind.DarkKnight    => 5.5,
-        _                       => 2.0
-    };
+    private static bool HasMidBossFor(int stage) => StageInChapter(stage) == 3;
 
-    // ─── Allowed towers ─────────────────────────────────────────────────
-    private static List<TowerKind> AllowedTowersFor(int n)
+    private static bool HasBossFor(int stage) => StageInChapter(stage) == 5;
+
+    private static void Distribute(
+        List<WaveDef> waves,
+        EnemyKind enemy,
+        int totalCount,
+        int[] targetWaves,
+        double interval,
+        int pathCount)
+    {
+        if (totalCount <= 0) return;
+
+        int baseCount = totalCount / targetWaves.Length;
+        int remainder = totalCount % targetWaves.Length;
+        for (int i = 0; i < targetWaves.Length; i++)
+        {
+            int count = baseCount + (i < remainder ? 1 : 0);
+            if (count <= 0) continue;
+            AddCount(waves[targetWaves[i]], enemy, count, interval, PathIndex(i, pathCount), i * 0.5);
+        }
+    }
+
+    private static void AddCount(
+        WaveDef wave,
+        EnemyKind enemy,
+        int count,
+        double interval,
+        int path,
+        double delay)
+    {
+        if (count <= 0) return;
+
+        foreach (var entry in wave.Entries)
+        {
+            if (entry.Enemy != enemy || entry.SpawnPath != path) continue;
+            entry.Count += count;
+            return;
+        }
+
+        wave.Entries.Add(new WaveEntry
+        {
+            Enemy = enemy,
+            Count = count,
+            SpawnInterval = interval,
+            SpawnPath = path,
+            InitialDelay = delay
+        });
+    }
+
+    private static int PathIndex(int requested, int pathCount) => requested % Math.Max(1, pathCount);
+
+    private static List<TowerKind> AllowedTowersFor(int stage)
     {
         var list = new List<TowerKind> { TowerKind.Archer, TowerKind.Slow };
-        if (n >= 2) list.Add(TowerKind.Barracks);
-        if (n >= 4) list.Add(TowerKind.Mage);
-        if (n >= 6) list.Add(TowerKind.Bombard);
+        if (stage >= 2) list.Add(TowerKind.Barracks);
+        if (stage >= 4) list.Add(TowerKind.Mage);
+        if (stage >= 6) list.Add(TowerKind.Bombard);
         return list;
     }
 
-    // ─── Environment effects ────────────────────────────────────────────
-    private static List<EnvEffect> EffectsFor(int n)
+    private static List<EnvEffect> EffectsFor(int stage)
     {
-        var fx = new List<EnvEffect>();
-        if (n is >= 16 and <= 20) { fx.Add(EnvEffect.LavaTiles); fx.Add(EnvEffect.NightVision); }
-        if (n is >= 21 and <= 25)   fx.Add(EnvEffect.IcePath);
-        if (n is >= 11 and <= 15)   fx.Add(EnvEffect.NarrowCorridor);
-        return fx;
+        var effects = new List<EnvEffect>();
+        if (stage is >= 11 and <= 15) effects.Add(EnvEffect.NarrowCorridor);
+        if (stage is >= 16 and <= 20)
+        {
+            effects.Add(EnvEffect.LavaTiles);
+            effects.Add(EnvEffect.NightVision);
+        }
+        return effects;
     }
 
-    // ─── Difficulty curves ──────────────────────────────────────────────
-    /// <summary>
-    /// 적 체력 배율 — 1~4는 학습용으로 매우 쉽게(0.55~0.85),
-    /// 5는 첫 중간보스 기준선(1.0), 6~30은 매 스테이지 +0.10 으로 점진 상승.
-    /// (1: 0.55, 2: 0.65, 3: 0.75, 4: 0.85, 5: 1.00, 6: 1.00, …, 30: 3.40)
-    /// </summary>
-    private static double HpScaleFor(int n)
-    {
-        if (n <= 4) return 0.55 + (n - 1) * 0.10;   // 0.55, 0.65, 0.75, 0.85
-        if (n == 5) return 1.00;                    // 중간보스 기준선
-        return 1.00 + (n - 5) * 0.10;               // 6=1.00, 7=1.10, …, 30=3.50
-    }
+    private static double HpScaleFor(int stage) => Math.Pow(1.2, ChapterFor(stage) - 1);
 
-    /// <summary>적 속도 배율 — 초반 둔하게, 후반은 원래 페이스 유지.</summary>
-    private static double SpeedScaleFor(int n)
-    {
-        if (n <= 4) return 0.85 + (n - 1) * 0.04;   // 0.85, 0.89, 0.93, 0.97
-        return 1.00 + (n - 5) * 0.015;              // 5=1.00, …, 30=1.375
-    }
+    private static double SpeedScaleFor(int stage) => 1.0 + (ChapterFor(stage) - 1) * 0.03;
 
-    // ─── Build list ─────────────────────────────────────────────────────
     private static List<StageDef> Build()
     {
         var list = new List<StageDef>();
-        for (int n = 1; n <= 30; n++)
+        for (int stage = 1; stage <= 20; stage++)
         {
-            var paths = PathFor(n);
+            var paths = PathFor(stage);
             list.Add(new StageDef
             {
-                Number          = n,
-                Name            = StageNames[n - 1],
-                Theme           = ThemeForStage(n),
-                StartingGold    = 200 + (n - 1) * 12,
-                StartingLives   = 20,
-                Paths           = paths,
-                BuildSlots      = new(),
-                Waves           = WavesFor(n),
-                AllowedTowers   = AllowedTowersFor(n),
-                HasMidBoss      = HasMidBossFor(n),
-                HasBoss         = HasBossFor(n),
-                EnemyHpScale    = HpScaleFor(n),
-                EnemySpeedScale = SpeedScaleFor(n),
-                Effects         = EffectsFor(n),
+                Number = stage,
+                Name = StageNames[stage - 1],
+                Theme = ThemeForStage(stage),
+                StartingGold = 220 + (stage - 1) * 12,
+                StartingLives = 20,
+                Paths = paths,
+                BuildSlots = new(),
+                Waves = WavesFor(stage),
+                AllowedTowers = AllowedTowersFor(stage),
+                HasMidBoss = HasMidBossFor(stage),
+                HasBoss = HasBossFor(stage),
+                EnemyHpScale = HpScaleFor(stage),
+                EnemySpeedScale = SpeedScaleFor(stage),
+                Effects = EffectsFor(stage),
             });
         }
         return list;

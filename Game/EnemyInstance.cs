@@ -12,16 +12,26 @@ public class EnemyInstance
     public double Hp;
     public double MaxHp;
     public double Speed;
+    public double ExternalSpeedBonus;
     public double SlowTimer;
     public double SlowFactor;
     public double DotTimer;
     public double DotDps;
     public double HealTimer;
+    public double RegenerateTimer;
+    public double GlobalSpeedBonusTimer;
+    public double GlobalSpeedBonusActiveTimer;
+    public int ShieldCharges;
+    public bool ChargeTriggered;
+    public double ChargeTimer;
     public bool Alive = true;
     public bool ReachedBase;
     public Soldier? EngagedBy;
     public double EngageTimer;
     public int PathIndex;
+    public bool IsWyvern => Def.Kind == EnemyKind.EliteWyvern;
+    public bool CanCharge => Def.ChargeSpeedMultiplier > 1;
+    public double EffectivePhysicalResist => Def.PhysicalResist + (ChargeTriggered ? Def.ChargePhysicalResistBonus : 0.0);
 
     public void Tick(double dt)
     {
@@ -32,6 +42,13 @@ public class EnemyInstance
             Hp -= DotDps * dt;
             DotTimer -= dt;
             if (Hp <= 0) { Alive = false; return; }
+        }
+        UpdateChargeState();
+
+        if (IsWyvern && EngagedBy != null)
+        {
+            EngagedBy.Target = null;
+            EngagedBy = null;
         }
 
         if (EngagedBy != null && EngagedBy.Alive)
@@ -47,7 +64,19 @@ public class EnemyInstance
         }
         EngagedBy = null;
 
-        double effSpeed = Speed;
+        double effSpeed = Speed * (1 + ExternalSpeedBonus);
+        UpdateChargeState();
+
+        if (Def.ChargeSpeedPersists && ChargeTriggered)
+        {
+            effSpeed *= Def.ChargeSpeedMultiplier;
+        }
+        else if (ChargeTimer > 0)
+        {
+            effSpeed *= Def.ChargeSpeedMultiplier;
+            ChargeTimer -= dt;
+        }
+
         if (SlowTimer > 0)
         {
             effSpeed *= (1 - SlowFactor);
@@ -78,15 +107,30 @@ public class EnemyInstance
 
     public void ApplyDamage(double dmg, DamageType type)
     {
+        if (dmg <= 0 || !Alive) return;
+
+        if (IsWyvern && type == DamageType.Explosive) return;
+        UpdateChargeState();
+
+        if (type != DamageType.True)
+        {
+            if (ShieldCharges > 0)
+            {
+                ShieldCharges--;
+                return;
+            }
+        }
+
         double mult = type switch
         {
-            DamageType.Physical => 1.0 - Def.PhysicalResist,
+            DamageType.Physical => 1.0 - EffectivePhysicalResist,
             DamageType.Magic => 1.0 - Def.MagicResist,
-            DamageType.Explosive => 1.0 - Def.PhysicalResist * 0.5,
+            DamageType.Explosive => 1.0 - EffectivePhysicalResist * 0.5,
             _ => 1.0
         };
         Hp -= dmg * mult;
         if (Hp <= 0) Alive = false;
+        else UpdateChargeState();
     }
 
     public void ApplySlow(double amount, double duration)
@@ -104,5 +148,13 @@ public class EnemyInstance
     {
         DotDps = dps;
         DotTimer = duration;
+    }
+
+    private void UpdateChargeState()
+    {
+        if (!CanCharge || ChargeTriggered || Hp > MaxHp * Def.ChargeHpThreshold) return;
+
+        ChargeTriggered = true;
+        ChargeTimer = Def.ChargeSpeedPersists ? 0 : Def.ChargeDuration;
     }
 }
