@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using KingdomRushClone.Models;
 
 namespace KingdomRushClone.Data;
@@ -45,28 +46,12 @@ public static class StageCatalog
         _ => StageTheme.Volcano
     };
 
+    private static AssetPreviewMap MapLayoutFor(int stage) =>
+        AssetPreviewCatalog.PreviewMapForChapter(ChapterFor(stage));
+
     private static List<List<Vec2>> PathFor(int stage)
     {
-        return ChapterFor(stage) switch
-        {
-            1 => new() { new() { new(40, 310), new(560, 310), new(1060, 310) } },
-            2 => new() { new()
-            {
-                new(40, 100), new(300, 100), new(300, 310),
-                new(800, 310), new(800, 520), new(1060, 520)
-            }},
-            3 => new()
-            {
-                new() { new(40, 150), new(400, 150), new(550, 310), new(900, 310), new(1060, 310) },
-                new() { new(40, 470), new(400, 470), new(550, 310), new(900, 310), new(1060, 310) },
-            },
-            _ => new() { new()
-            {
-                new(40, 80), new(250, 80), new(250, 540),
-                new(600, 540), new(600, 120), new(900, 120),
-                new(900, 540), new(1060, 540)
-            }}
-        };
+        return MapLayoutFor(stage).Paths.Select(path => path.ToList()).ToList();
     }
 
     private sealed record StageComposition(
@@ -239,6 +224,7 @@ public static class StageCatalog
         for (int stage = 1; stage <= 20; stage++)
         {
             var paths = PathFor(stage);
+            var layout = MapLayoutFor(stage);
             list.Add(new StageDef
             {
                 Number = stage,
@@ -247,7 +233,7 @@ public static class StageCatalog
                 StartingGold = 220 + (stage - 1) * 12,
                 StartingLives = 20,
                 Paths = paths,
-                BuildSlots = new(),
+                BuildSlots = layout.TowerSlots.ToList(),
                 Waves = WavesFor(stage),
                 AllowedTowers = AllowedTowersFor(stage),
                 HasMidBoss = HasMidBossFor(stage),

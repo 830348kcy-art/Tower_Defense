@@ -34,7 +34,8 @@ public class TowerInstance
     }
 
     // ─── Effective stats (after tech bonuses) ────────────────────────────
-    public double EffectiveRange         => CurrentLevel.Range          * (1 + SaveManager.TechEffect(TechId.TowerRange));
+    public const double MapRangeScale = 1.35;
+    public double EffectiveRange         => CurrentLevel.Range * MapRangeScale * (1 + SaveManager.TechEffect(TechId.TowerRange));
     public double EffectiveDamage        => CurrentLevel.Damage         * (1 + SaveManager.TechEffect(TechId.TowerAttack));
     public double EffectiveAttackInterval => CurrentLevel.AttackInterval / (1 + SaveManager.TechEffect(TechId.TowerSpeed));
 
