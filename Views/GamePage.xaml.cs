@@ -61,7 +61,7 @@ public partial class GamePage : Page
         _stage  = stage;
         _engine = new GameEngine(stage);
 
-        StageText.Text = $"Stage {stage.Number} — {stage.Name}";
+        StageText.Text = $"{stage.Number:D2} · {stage.Name}";
         DrawMap();
 
         _lastLives        = stage.StartingLives;
@@ -223,8 +223,11 @@ public partial class GamePage : Page
                     Width  = TileSize - 1,
                     Height = TileSize - 1,
                     Fill   = isPath ? pathBrush : buildBrush,
-                    Stroke = new SolidColorBrush(Color.FromArgb(50, 0, 0, 0)),
-                    StrokeThickness  = 0.5,
+                    // 배치 가능 셀 = 옅은 시안 테크 그리드 / 경로 = 어두운 라인
+                    Stroke = isPath
+                        ? new SolidColorBrush(Color.FromArgb(60, 0, 0, 0))
+                        : new SolidColorBrush(Color.FromArgb(45, 0x00, 0xD4, 0xFF)),
+                    StrokeThickness  = isPath ? 0.5 : 0.8,
                     IsHitTestVisible = false
                 };
                 Canvas.SetLeft(rect, c * TileSize);
@@ -249,10 +252,12 @@ public partial class GamePage : Page
                 IsHitTestVisible = false
             });
 
-        // Path lines + markers
+        // ── Path lanes (Arknights: dark road + dashed direction line) ──
         foreach (var path in _stage.Paths)
         {
             for (int i = 0; i < path.Count - 1; i++)
+            {
+                // Road base
                 GameCanvas.Children.Add(new Line
                 {
                     X1 = path[i].X,   Y1 = path[i].Y,
@@ -260,42 +265,98 @@ public partial class GamePage : Page
                     Stroke = pathBrush, StrokeThickness = 34,
                     StrokeStartLineCap = PenLineCap.Round,
                     StrokeEndLineCap   = PenLineCap.Round,
-                    IsHitTestVisible   = false, Opacity = 0.50
+                    IsHitTestVisible   = false, Opacity = 0.55
                 });
-
-            // Spawn marker
-            GameCanvas.Children.Add(new Polygon
-            {
-                Fill   = Brushes.Crimson, IsHitTestVisible = false,
-                Points = new PointCollection
+                // Dashed cyan center direction line
+                GameCanvas.Children.Add(new Line
                 {
-                    new(path[0].X, path[0].Y - 14),
-                    new(path[0].X - 12, path[0].Y + 8),
-                    new(path[0].X + 12, path[0].Y + 8)
-                }
-            });
-            GameCanvas.Children.Add(new TextBlock
-            {
-                Text = "S", Foreground = Brushes.White,
-                FontWeight = FontWeights.Bold, FontSize = 11,
-                IsHitTestVisible = false
-            }.Also(tb => { Canvas.SetLeft(tb, path[0].X - 5); Canvas.SetTop(tb, path[0].Y - 8); }));
+                    X1 = path[i].X,   Y1 = path[i].Y,
+                    X2 = path[i+1].X, Y2 = path[i+1].Y,
+                    Stroke = new SolidColorBrush(Color.FromArgb(90, 0, 0xD4, 0xFF)),
+                    StrokeThickness = 2,
+                    StrokeDashArray = new DoubleCollection { 4, 4 },
+                    IsHitTestVisible = false
+                });
+            }
+        }
 
-            // Base marker
+        // ── Spawn boxes (red) + Objective boxes (blue) drawn on top ──
+        var spawnSeen = new HashSet<(double, double)>();
+        var baseSeen  = new HashSet<(double, double)>();
+        foreach (var path in _stage.Paths)
+        {
+            var sp = path[0];
+            if (spawnSeen.Add((sp.X, sp.Y))) DrawSpawnBox(sp);
             var bp = path[^1];
-            GameCanvas.Children.Add(new Rectangle
-            {
-                Width = 34, Height = 34, Fill = Brushes.RoyalBlue,
-                Stroke = Brushes.White, StrokeThickness = 2,
-                RadiusX = 5, RadiusY = 5, IsHitTestVisible = false
-            }.Also(rc => { Canvas.SetLeft(rc, bp.X - 17); Canvas.SetTop(rc, bp.Y - 17); }));
-            GameCanvas.Children.Add(new TextBlock
-            {
-                Text = "🏰", FontSize = 17, IsHitTestVisible = false
-            }.Also(tb => { Canvas.SetLeft(tb, bp.X - 13); Canvas.SetTop(tb, bp.Y - 14); }));
+            if (baseSeen.Add((bp.X, bp.Y))) DrawObjectiveBox(bp);
         }
 
         GameCanvas.MouseMove += OnCanvasMouseMove;
+    }
+
+    // ── Arknights spawn box (red, enemies enter here) ──────────────────
+    private void DrawSpawnBox(Vec2 p)
+    {
+        var red = Color.FromRgb(0xEF, 0x44, 0x44);
+        // 외곽 회전 사각 (다이아몬드)
+        var outer = new Rectangle
+        {
+            Width = 30, Height = 30,
+            Stroke = new SolidColorBrush(red), StrokeThickness = 2,
+            Fill = new SolidColorBrush(Color.FromArgb(40, 0xEF, 0x44, 0x44)),
+            IsHitTestVisible = false,
+            RenderTransform = new RotateTransform(45, 15, 15)
+        };
+        Canvas.SetLeft(outer, p.X - 15); Canvas.SetTop(outer, p.Y - 15);
+        Canvas.SetZIndex(outer, 8);
+        GameCanvas.Children.Add(outer);
+        // 입장 화살표
+        GameCanvas.Children.Add(new TextBlock
+        {
+            Text = "▶", Foreground = new SolidColorBrush(red),
+            FontSize = 13, FontWeight = FontWeights.Bold, IsHitTestVisible = false
+        }.Also(tb => { Canvas.SetLeft(tb, p.X - 6); Canvas.SetTop(tb, p.Y - 10); Canvas.SetZIndex(tb, 9); }));
+    }
+
+    // ── Arknights objective box (blue, protect this point) ─────────────
+    private void DrawObjectiveBox(Vec2 p)
+    {
+        var blue = Color.FromRgb(0x00, 0xD4, 0xFF);
+        var outer = new Rectangle
+        {
+            Width = 34, Height = 34,
+            Stroke = new SolidColorBrush(blue), StrokeThickness = 2,
+            Fill = new SolidColorBrush(Color.FromArgb(45, 0x00, 0xD4, 0xFF)),
+            IsHitTestVisible = false
+        };
+        Canvas.SetLeft(outer, p.X - 17); Canvas.SetTop(outer, p.Y - 17);
+        Canvas.SetZIndex(outer, 8);
+        GameCanvas.Children.Add(outer);
+        // 코너 브래킷 4개로 타겟 느낌
+        foreach (var (dx, dy, geo) in new[]
+        {
+            (-17.0, -17.0, "M0,8 L0,0 L8,0"),
+            ( 17.0, -17.0, "M0,0 L8,0 L8,8"),
+            (-17.0,  17.0, "M0,0 L0,8 L8,8"),
+            ( 17.0,  17.0, "M8,0 L8,8 L0,8"),
+        })
+        {
+            GameCanvas.Children.Add(new System.Windows.Shapes.Path
+            {
+                Data = Geometry.Parse(geo),
+                Stroke = new SolidColorBrush(blue), StrokeThickness = 2,
+                IsHitTestVisible = false
+            }.Also(pt =>
+            {
+                Canvas.SetLeft(pt, p.X + (dx < 0 ? -17 : 9));
+                Canvas.SetTop(pt,  p.Y + (dy < 0 ? -17 : 9));
+                Canvas.SetZIndex(pt, 9);
+            }));
+        }
+        GameCanvas.Children.Add(new TextBlock
+        {
+            Text = "🛡", FontSize = 15, IsHitTestVisible = false
+        }.Also(tb => { Canvas.SetLeft(tb, p.X - 9); Canvas.SetTop(tb, p.Y - 11); Canvas.SetZIndex(tb, 10); }));
     }
 
     private bool IsNearPath(Vec2 pt, double tol)
@@ -360,7 +421,7 @@ public partial class GamePage : Page
         RenderEffects();
         RenderSoldiers();
         UpdateDamageLabels();
-        UpdateBossHpBar();
+        UpdateBossHud();
     }
 
     // ── Towers ──────────────────────────────────────────────────────────
@@ -375,13 +436,29 @@ public partial class GamePage : Page
 
     private void AddTowerVisual(TowerInstance t)
     {
-        var g    = new Grid { Width = 38, Height = 38 };
+        var g    = new Grid { Width = 42, Height = 42 };
+
+        // 배치 플레이트 (팔각 딥네이비 + 시안 테두리)
+        var plate = new Polygon
+        {
+            Points = Octagon(21, 21, 20),
+            Fill   = new SolidColorBrush(Color.FromRgb(0x0A, 0x0F, 0x1A)),
+            Stroke = new SolidColorBrush(Color.FromArgb(160, 0x00, 0xD4, 0xFF)),
+            StrokeThickness = 1.5,
+            IsHitTestVisible = false
+        };
+        g.Children.Add(plate);
+
+        // 유닛 본체
         var rect = new Rectangle
         {
-            Width = 38, Height = 38,
+            Width = 28, Height = 28,
             Fill  = HexBrush(t.CurrentColorHex),
-            Stroke = new SolidColorBrush(Color.FromRgb(20, 20, 20)),
-            StrokeThickness = 1.5, RadiusX = 7, RadiusY = 7
+            Stroke = new SolidColorBrush(Color.FromArgb(220, 0x0D, 0x11, 0x17)),
+            StrokeThickness = 1.5, RadiusX = 4, RadiusY = 4,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment   = VerticalAlignment.Center,
+            IsHitTestVisible = false
         };
         g.Children.Add(rect);
 
@@ -389,7 +466,7 @@ public partial class GamePage : Page
         var icon = new TextBlock
         {
             Text     = t.CurrentIcon,
-            FontSize = 18,
+            FontSize = 16,
             HorizontalAlignment = HorizontalAlignment.Center,
             VerticalAlignment   = VerticalAlignment.Center,
             IsHitTestVisible = false
@@ -409,28 +486,41 @@ public partial class GamePage : Page
 
         g.Tag = t;
         g.IsHitTestVisible = false;
-        Canvas.SetLeft(g, t.Pos.X - 19);
-        Canvas.SetTop(g,  t.Pos.Y - 19);
+        Canvas.SetLeft(g, t.Pos.X - 21);
+        Canvas.SetTop(g,  t.Pos.Y - 21);
+        Canvas.SetZIndex(g, 30);
         GameCanvas.Children.Add(g);
         _towerShapes[t] = g;
 
         UpdateTowerVisual(t);
     }
 
+    // 팔각형 점 생성 (cx, cy 중심, r 반경)
+    private static PointCollection Octagon(double cx, double cy, double r)
+    {
+        var pts = new PointCollection();
+        double k = r * 0.4142; // tan(22.5°) → 모서리 컷
+        pts.Add(new Point(cx - k, cy - r)); pts.Add(new Point(cx + k, cy - r));
+        pts.Add(new Point(cx + r, cy - k)); pts.Add(new Point(cx + r, cy + k));
+        pts.Add(new Point(cx + k, cy + r)); pts.Add(new Point(cx - k, cy + r));
+        pts.Add(new Point(cx - r, cy + k)); pts.Add(new Point(cx - r, cy - k));
+        return pts;
+    }
+
     private void UpdateTowerVisual(TowerInstance t)
     {
         if (_towerShapes[t] is not Grid g) return;
 
-        // Update color
-        if (g.Children[0] is Rectangle rect)
+        // Update color (Children[1] = 유닛 본체, [0] = 플레이트)
+        if (g.Children[1] is Rectangle rect)
             rect.Fill = HexBrush(t.CurrentColorHex);
 
         // Update icon text
-        if (g.Children[1] is TextBlock icon)
+        if (g.Children[2] is TextBlock icon)
             icon.Text = t.CurrentIcon;
 
         // Update level pips
-        if (g.Children[2] is StackPanel pips)
+        if (g.Children[3] is StackPanel pips)
         {
             pips.Children.Clear();
             if (!t.IsBranched)
@@ -508,6 +598,9 @@ public partial class GamePage : Page
                     IsHitTestVisible = false
                 };
                 _enemyShapes[e] = (body, hpBg, hpFg);
+                Canvas.SetZIndex(hpBg, 20);
+                Canvas.SetZIndex(hpFg, 21);
+                Canvas.SetZIndex(body, 22);
                 GameCanvas.Children.Add(hpBg);
                 GameCanvas.Children.Add(hpFg);
                 GameCanvas.Children.Add(body);
@@ -563,6 +656,7 @@ public partial class GamePage : Page
                     IsHitTestVisible = false
                 };
                 _projShapes[p] = shape;
+                Canvas.SetZIndex(shape, 36);
                 GameCanvas.Children.Add(shape);
             }
             var rp = p.GetRenderPos();
@@ -649,44 +743,53 @@ public partial class GamePage : Page
         }
     }
 
-    // ── Boss HP bar ─────────────────────────────────────────────────────
-    private void UpdateBossHpBar()
+    // ── Boss HP HUD (PR #2 — BossHealthPanel) ───────────────────────────
+    private void UpdateBossHud()
     {
         EnemyInstance? boss = null;
-        foreach (var e in _engine.Enemies)
-            if (e.Alive && (e.Def.IsBoss || e.Def.IsMidBoss)) { boss = e; break; }
+        foreach (var enemy in _engine.Enemies)
+        {
+            // Include MidBoss too — extra coverage beyond PR's IsBoss-only check.
+            if (enemy.Alive && (enemy.Def.IsBoss || enemy.Def.IsMidBoss))
+            {
+                boss = enemy;
+                break;
+            }
+        }
 
         if (boss == null)
         {
-            BossHpPanel.Visibility = Visibility.Collapsed;
+            BossHealthPanel.Visibility = Visibility.Collapsed;
+            return;
         }
-        else
-        {
-            BossHpPanel.Visibility = Visibility.Visible;
-            BossNameText.Text      = $"  {boss.Def.Name}";
-            BossHpBar.Value        = Math.Max(0, boss.Hp / boss.MaxHp * 100);
-        }
+
+        var ratio = Math.Max(0, Math.Min(1, boss.Hp / Math.Max(1, boss.MaxHp)));
+        BossHealthPanel.Visibility = Visibility.Visible;
+        BossHealthName.Text        = boss.Def.Name;
+        BossHealthFill.Width       = 236 * ratio;
+        BossHealthText.Text        = $"{Math.Ceiling(Math.Max(0, boss.Hp))} / {Math.Ceiling(boss.MaxHp)} HP";
     }
 
     // ─── HUD UPDATE ──────────────────────────────────────────────────────
     private void UpdateHud()
     {
-        GoldText.Text   = $"♦ {_engine.Gold}G";
-        LivesText.Text  = $"❤ {_engine.Lives} / {_engine.LivesMax}";
-        WaveText.Text   = $"웨이브  {_engine.Spawner.CurrentWave} / {_engine.Spawner.TotalWaves}";
-        SpeedBtn.Content = _engine.Speed == GameSpeed.Fast ? "속도: 2x" : "속도: 1x";
-        PauseBtn.Content = _engine.Speed == GameSpeed.Paused ? "재개" : "일시정지";
+        // 아이콘은 XAML에 분리되어 있으므로 수치만 갱신
+        GoldText.Text   = $"{_engine.Gold}";
+        LivesText.Text  = $"{_engine.Lives} / {_engine.LivesMax}";
+        WaveText.Text   = $"{_engine.Spawner.CurrentWave} / {_engine.Spawner.TotalWaves}";
+        SpeedBtn.Content = _engine.Speed == GameSpeed.Fast ? "2×" : "1×";
+        PauseBtn.Content = _engine.Speed == GameSpeed.Paused ? "▶  RESUME" : "⏸  PAUSE";
 
         NextWaveTimer.Text = _engine.Spawner.AllWavesStarted
-            ? "마지막 웨이브"
-            : $"다음 웨이브: {_engine.Spawner.NextWaveCountdown:F1}s";
+            ? "FINAL WAVE"
+            : $"NEXT  {_engine.Spawner.NextWaveCountdown:F1}s";
 
         // Wave preview
         if (!_engine.Spawner.AllWavesStarted)
         {
             var peek = _engine.Spawner.PeekNextWaveEnemies();
             NextWavePreview.Text = peek.Count > 0
-                ? "다음: " + string.Join(" ", peek.Select(EnemyIcon))
+                ? "▸ " + string.Join(" ", peek.Select(EnemyIcon))
                 : "";
         }
         else
@@ -694,18 +797,25 @@ public partial class GamePage : Page
             NextWavePreview.Text = "";
         }
 
-        // Skill buttons
-        MeteorBtn.IsEnabled    = _engine.MeteorCooldown <= 0;
-        MeteorBtn.Content      = _engine.MeteorCooldown > 0
-            ? $"🔥 {_engine.MeteorCooldown:F0}s"  : "🔥 화포 [1]";
-        ReinforceBtn.IsEnabled = _engine.ReinforcementCooldown <= 0;
-        ReinforceBtn.Content   = _engine.ReinforcementCooldown > 0
-            ? $"🛡 {_engine.ReinforcementCooldown:F0}s" : "🛡 지원군 [2]";
+        // 스킬 쿨다운 셰이드 (리치 콘텐츠 보존)
+        if (_engine.MeteorCooldown > 0)
+        {
+            MeteorCdShade.Visibility = Visibility.Visible;
+            MeteorCdText.Text = $"{_engine.MeteorCooldown:F0}s";
+        }
+        else MeteorCdShade.Visibility = Visibility.Collapsed;
+
+        if (_engine.ReinforcementCooldown > 0)
+        {
+            ReinforceCdShade.Visibility = Visibility.Visible;
+            ReinforceCdText.Text = $"{_engine.ReinforcementCooldown:F0}s";
+        }
+        else ReinforceCdShade.Visibility = Visibility.Collapsed;
 
         HintText.Text = _skillMode switch
         {
-            SkillMode.Meteor   => "맵 클릭 → 화포 시전",
-            SkillMode.Reinforce => "맵 클릭 → 지원군 소환",
+            SkillMode.Meteor    => "▸ 맵 클릭으로 화포 시전",
+            SkillMode.Reinforce => "▸ 맵 클릭으로 지원군 소환",
             _ => ""
         };
     }
@@ -803,18 +913,20 @@ public partial class GamePage : Page
         ClearSelection();
         _selectedTower = t;
 
-        // Range ring
+        // Range ring (Arknights cyan, dashed)
         _rangeIndicator = new Ellipse
         {
             Width  = t.EffectiveRange * 2,
             Height = t.EffectiveRange * 2,
-            Stroke = new SolidColorBrush(Color.FromArgb(200, 255, 220, 0)),
+            Stroke = new SolidColorBrush(Color.FromArgb(220, 0x00, 0xD4, 0xFF)),
             StrokeThickness = 1.5,
-            Fill   = new SolidColorBrush(Color.FromArgb(25, 255, 255, 0)),
+            StrokeDashArray = new DoubleCollection { 5, 4 },
+            Fill   = new SolidColorBrush(Color.FromArgb(22, 0x00, 0xD4, 0xFF)),
             IsHitTestVisible = false
         };
         Canvas.SetLeft(_rangeIndicator, t.Pos.X - t.EffectiveRange);
         Canvas.SetTop(_rangeIndicator,  t.Pos.Y - t.EffectiveRange);
+        Canvas.SetZIndex(_rangeIndicator, 15);
         GameCanvas.Children.Add(_rangeIndicator);
 
         var panel = BuildPanel("#222831", 272);
@@ -905,16 +1017,32 @@ public partial class GamePage : Page
         _                   => "?"
     };
 
-    // ─── Panel helpers ───────────────────────────────────────────────────
+    // ─── Panel helpers (Arknights style) ─────────────────────────────────
     private static StackPanel BuildPanel(string bgHex, double width)
-        => new() { Background = HexBrush(bgHex), Width = width };
+        => new() { Background = HexBrush("#0A0F1A"), Width = width };
 
     private static void AddPanelTitle(StackPanel p, string text, string colorHex)
-        => p.Children.Add(new TextBlock
+    {
+        // 영문 시스템 라벨 + 타이틀 + 구분선 (명일방주 헤더 패턴)
+        var header = new StackPanel { Margin = new Thickness(14, 12, 14, 4) };
+        var row = new StackPanel { Orientation = Orientation.Horizontal };
+        row.Children.Add(new Rectangle
         {
-            Text = text, FontSize = 16, FontWeight = FontWeights.Bold,
-            Foreground = HexBrush(colorHex), Margin = new Thickness(10, 10, 10, 6)
+            Width = 3, Height = 16, Fill = HexBrush("#00D4FF"),
+            Margin = new Thickness(0, 0, 8, 0), VerticalAlignment = VerticalAlignment.Center
         });
+        row.Children.Add(new TextBlock
+        {
+            Text = text, FontSize = 15, FontWeight = FontWeights.Bold,
+            Foreground = HexBrush("#E5E7EB"), VerticalAlignment = VerticalAlignment.Center
+        });
+        header.Children.Add(row);
+        header.Children.Add(new Rectangle
+        {
+            Height = 1, Fill = HexBrush("#164E63"), Margin = new Thickness(0, 8, 0, 0)
+        });
+        p.Children.Add(header);
+    }
 
     private static Button MakeButton(string label, double w, double h, string colorHex)
         => new()
@@ -943,8 +1071,36 @@ public partial class GamePage : Page
 
     private void ShowFloatingPanel(Vec2 anchor, FrameworkElement panel)
     {
+        // 명일방주 프레임: 시안 테두리 + 상단 좌측 코너 브래킷
+        var frame = new Border
+        {
+            Background = HexBrush("#0A0F1A"),
+            BorderBrush = HexBrush("#00D4FF"),
+            BorderThickness = new Thickness(1),
+            Child = panel
+        };
+        var wrap = new Grid();
+        wrap.Children.Add(frame);
+        // 좌상단 코너 브래킷
+        wrap.Children.Add(new System.Windows.Shapes.Path
+        {
+            Data = Geometry.Parse("M 0,14 L 0,0 L 14,0"),
+            Stroke = HexBrush("#00D4FF"), StrokeThickness = 2,
+            HorizontalAlignment = HorizontalAlignment.Left,
+            VerticalAlignment = VerticalAlignment.Top,
+            Margin = new Thickness(-1, -1, 0, 0)
+        });
+        // 우하단 코너 브래킷
+        wrap.Children.Add(new System.Windows.Shapes.Path
+        {
+            Data = Geometry.Parse("M 0,0 L 14,0 L 14,-14"),
+            Stroke = HexBrush("#00D4FF"), StrokeThickness = 2,
+            HorizontalAlignment = HorizontalAlignment.Right,
+            VerticalAlignment = VerticalAlignment.Bottom,
+            Margin = new Thickness(0, 0, -1, -1)
+        });
         Overlay.Visibility  = Visibility.Visible;
-        OverlayContent.Content = panel;
+        OverlayContent.Content = wrap;
     }
 
     private void ClearSelection()
@@ -1031,18 +1187,28 @@ public partial class GamePage : Page
             }
             var panel = new StackPanel
             {
-                Background = new SolidColorBrush(Color.FromRgb(20, 24, 32)),
+                Background = new SolidColorBrush(Color.FromRgb(0x0A, 0x0F, 0x1A)),
                 Width = 500
             };
             var border = new Border
             {
-                Child = panel, BorderBrush = new SolidColorBrush(Color.FromRgb(80, 100, 130)),
-                BorderThickness = new Thickness(1.5), CornerRadius = new CornerRadius(8)
+                Child = panel, BorderBrush = new SolidColorBrush(Color.FromRgb(0x00, 0xD4, 0xFF)),
+                BorderThickness = new Thickness(1)
             };
+            // 상단 시스템 라벨 바
+            var tutTop = new Grid { Height = 30, Background = new SolidColorBrush(Color.FromRgb(0x11, 0x18, 0x27)) };
+            tutTop.Children.Add(new Rectangle { Width = 4, HorizontalAlignment = HorizontalAlignment.Left, Fill = new SolidColorBrush(Color.FromRgb(0x00, 0xD4, 0xFF)) });
+            tutTop.Children.Add(new TextBlock
+            {
+                Text = "SYSTEM · TUTORIAL", FontSize = 10, FontWeight = FontWeights.Bold,
+                Foreground = new SolidColorBrush(Color.FromRgb(0x00, 0xD4, 0xFF)),
+                VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(14, 0, 0, 0)
+            });
+            panel.Children.Add(tutTop);
             panel.Children.Add(new TextBlock
             {
-                Text = msgs[idx], FontSize = 15, Foreground = Brushes.White,
-                Margin = new Thickness(24, 20, 24, 12), TextWrapping = TextWrapping.Wrap,
+                Text = msgs[idx], FontSize = 15, Foreground = new SolidColorBrush(Color.FromRgb(0xE5, 0xE7, 0xEB)),
+                Margin = new Thickness(24, 18, 24, 12), TextWrapping = TextWrapping.Wrap,
                 LineHeight = 22
             });
             var btns = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(24, 0, 24, 20) };
@@ -1069,31 +1235,42 @@ public partial class GamePage : Page
     {
         var panel = new StackPanel
         {
-            Background = new SolidColorBrush(Color.FromRgb(18, 22, 30)),
+            Background = new SolidColorBrush(Color.FromRgb(0x0A, 0x0F, 0x1A)),
             Width = 560
         };
         var border = new Border
         {
             Child = panel,
-            BorderBrush = new SolidColorBrush(Color.FromRgb(200, 160, 0)),
-            BorderThickness = new Thickness(1.5),
-            CornerRadius = new CornerRadius(8)
+            BorderBrush = new SolidColorBrush(Color.FromRgb(0xF5, 0x9E, 0x0B)),
+            BorderThickness = new Thickness(1)
         };
+
+        // 상단 작전 라벨 바
+        var introTop = new Grid { Height = 32, Background = new SolidColorBrush(Color.FromRgb(0x11, 0x18, 0x27)) };
+        introTop.Children.Add(new Rectangle { Width = 4, HorizontalAlignment = HorizontalAlignment.Left, Fill = new SolidColorBrush(Color.FromRgb(0xF5, 0x9E, 0x0B)) });
+        introTop.Children.Add(new TextBlock
+        {
+            Text = $"OPERATION  {_stage.Number:D2}", FontSize = 11, FontWeight = FontWeights.Bold,
+            Foreground = new SolidColorBrush(Color.FromRgb(0xF5, 0x9E, 0x0B)),
+            VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(14, 0, 0, 0)
+        });
+        panel.Children.Add(introTop);
 
         panel.Children.Add(new TextBlock
         {
-            Text = $"스테이지 {_stage.Number}  ·  {_stage.Name}",
-            FontSize = 24, FontWeight = FontWeights.Bold,
-            Foreground = Brushes.Gold,
+            Text = _stage.Name,
+            FontSize = 26, FontWeight = FontWeights.Bold,
+            Foreground = new SolidColorBrush(Color.FromRgb(0xE5, 0xE7, 0xEB)),
             HorizontalAlignment = HorizontalAlignment.Center,
-            Margin = new Thickness(20, 20, 20, 4)
+            Margin = new Thickness(20, 18, 20, 2)
         });
         panel.Children.Add(new TextBlock
         {
-            Text = "출현 예정 적",
-            FontSize = 13, Foreground = Brushes.LightGray,
+            Text = "▼  HOSTILE UNITS DETECTED  ▼",
+            FontSize = 11, FontWeight = FontWeights.Bold,
+            Foreground = new SolidColorBrush(Color.FromRgb(0xEF, 0x44, 0x44)),
             HorizontalAlignment = HorizontalAlignment.Center,
-            Margin = new Thickness(0, 0, 0, 12)
+            Margin = new Thickness(0, 4, 0, 14)
         });
 
         var wrap = new WrapPanel
@@ -1106,27 +1283,42 @@ public partial class GamePage : Page
         {
             if (!seen.Add(entry.Enemy)) continue;
             var def  = EnemyCatalog.Enemies[entry.Enemy];
-            var item = new StackPanel
+            bool elite = def.IsBoss || def.IsMidBoss;
+            var card = new Border
             {
-                Width = 100, Margin = new Thickness(6),
-                HorizontalAlignment = HorizontalAlignment.Center
+                Width = 96, Margin = new Thickness(6),
+                Background = new SolidColorBrush(Color.FromRgb(0x11, 0x18, 0x27)),
+                BorderBrush = new SolidColorBrush(elite
+                    ? Color.FromRgb(0xEF, 0x44, 0x44) : Color.FromRgb(0x16, 0x4E, 0x63)),
+                BorderThickness = new Thickness(1)
             };
+            var item = new StackPanel { Margin = new Thickness(0, 8, 0, 6) };
             item.Children.Add(new Image
             {
                 Source = EnemyFallbackImageFactory.CreateIcon(entry.Enemy),
-                Width = 58, Height = 58, Stretch = Stretch.Uniform,
+                Width = 56, Height = 56, Stretch = Stretch.Uniform,
                 HorizontalAlignment = HorizontalAlignment.Center
             });
             item.Children.Add(new TextBlock
             {
                 Text = def.Name,
-                Foreground = Brushes.White,
+                Foreground = new SolidColorBrush(Color.FromRgb(0xE5, 0xE7, 0xEB)),
                 FontSize = 11,
                 TextAlignment = TextAlignment.Center,
                 TextWrapping = TextWrapping.Wrap,
-                Margin = new Thickness(0, 4, 0, 0)
+                Margin = new Thickness(2, 5, 2, 0)
             });
-            wrap.Children.Add(item);
+            if (elite)
+                item.Children.Add(new TextBlock
+                {
+                    Text = def.IsBoss ? "BOSS" : "ELITE",
+                    Foreground = new SolidColorBrush(Color.FromRgb(0xEF, 0x44, 0x44)),
+                    FontSize = 8, FontWeight = FontWeights.Bold,
+                    TextAlignment = TextAlignment.Center, HorizontalAlignment = HorizontalAlignment.Center,
+                    Margin = new Thickness(0, 2, 0, 0)
+                });
+            card.Child = item;
+            wrap.Children.Add(card);
         }
         panel.Children.Add(wrap);
 
@@ -1148,27 +1340,40 @@ public partial class GamePage : Page
         if (_engine.Result == GameResult.Won)
             SaveManager.RecordStageStars(_stage.Number, stars);
 
+        bool won = _engine.Result == GameResult.Won;
+        var accentColor = won ? Color.FromRgb(0x00, 0xD4, 0xFF) : Color.FromRgb(0xEF, 0x44, 0x44);
+
         var panel = new StackPanel
         {
-            Background = new SolidColorBrush(Color.FromRgb(18, 22, 30)),
+            Background = new SolidColorBrush(Color.FromRgb(0x0A, 0x0F, 0x1A)),
             Width = 500
         };
         var border = new Border
         {
             Child = panel,
-            BorderBrush = new SolidColorBrush(_engine.Result == GameResult.Won
-                ? Color.FromRgb(200, 160, 0) : Color.FromRgb(160, 30, 30)),
-            BorderThickness = new Thickness(2), CornerRadius = new CornerRadius(10)
+            BorderBrush = new SolidColorBrush(accentColor),
+            BorderThickness = new Thickness(1)
         };
 
-        bool won = _engine.Result == GameResult.Won;
+        // 상단 결과 라벨 바
+        var resTop = new Grid { Height = 34, Background = new SolidColorBrush(Color.FromRgb(0x11, 0x18, 0x27)) };
+        resTop.Children.Add(new Rectangle { Width = 4, HorizontalAlignment = HorizontalAlignment.Left, Fill = new SolidColorBrush(accentColor) });
+        resTop.Children.Add(new TextBlock
+        {
+            Text = won ? "OPERATION COMPLETE" : "OPERATION FAILED",
+            FontSize = 11, FontWeight = FontWeights.Bold,
+            Foreground = new SolidColorBrush(accentColor),
+            VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(14, 0, 0, 0)
+        });
+        panel.Children.Add(resTop);
+
         panel.Children.Add(new TextBlock
         {
-            Text = won ? "✦  승리!  ✦" : "✗  패배  ✗",
-            FontSize = 38, FontWeight = FontWeights.Bold,
-            Foreground = won ? Brushes.Gold : Brushes.IndianRed,
+            Text = won ? "MISSION CLEAR" : "DEFEAT",
+            FontSize = 36, FontWeight = FontWeights.Bold,
+            Foreground = new SolidColorBrush(won ? Color.FromRgb(0x00, 0xD4, 0xFF) : Color.FromRgb(0xEF, 0x44, 0x44)),
             HorizontalAlignment = HorizontalAlignment.Center,
-            Margin = new Thickness(20, 24, 20, 4)
+            Margin = new Thickness(20, 22, 20, 4)
         });
 
         if (won)

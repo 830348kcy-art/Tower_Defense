@@ -3,36 +3,87 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              StartupUri="Views/MainWindow.xaml">
     <Application.Resources>
-        <SolidColorBrush x:Key="HudBg" Color="#222831"/>
-        <SolidColorBrush x:Key="HudFg" Color="#EEEEEE"/>
-        <SolidColorBrush x:Key="AccentGold" Color="#FFD369"/>
-        <SolidColorBrush x:Key="DangerRed" Color="#E63946"/>
 
-        <!-- 전역 버튼 스타일: 배경·글자색 완전 제어 -->
+        <!-- ══ Arknights Color Palette ══════════════════════════════════════ -->
+        <SolidColorBrush x:Key="PageBg"       Color="#0D1117"/>
+        <SolidColorBrush x:Key="PanelBg"      Color="#111827"/>
+        <SolidColorBrush x:Key="PanelBg2"     Color="#1C2333"/>
+        <SolidColorBrush x:Key="PanelBg3"     Color="#253047"/>
+        <SolidColorBrush x:Key="BorderCyan"   Color="#164E63"/>
+        <SolidColorBrush x:Key="AccentCyan"   Color="#00D4FF"/>
+        <SolidColorBrush x:Key="AccentCyanDim" Color="#0EA5E9"/>
+        <SolidColorBrush x:Key="AccentAmber"  Color="#F59E0B"/>
+        <SolidColorBrush x:Key="AccentAmberDim" Color="#92400E"/>
+        <SolidColorBrush x:Key="TextPrimary"  Color="#E5E7EB"/>
+        <SolidColorBrush x:Key="TextSecondary" Color="#9CA3AF"/>
+        <SolidColorBrush x:Key="TextMuted"    Color="#4B5563"/>
+        <SolidColorBrush x:Key="DangerRed"    Color="#EF4444"/>
+        <SolidColorBrush x:Key="DangerBorder" Color="#7F1D1D"/>
+        <SolidColorBrush x:Key="SuccessGreen" Color="#10B981"/>
+
+        <!-- Legacy aliases (code-behind 호환) -->
+        <SolidColorBrush x:Key="HudBg"    Color="#111827"/>
+        <SolidColorBrush x:Key="HudFg"    Color="#E5E7EB"/>
+        <SolidColorBrush x:Key="AccentGold" Color="#F59E0B"/>
+
+        <!-- ══ Page ══════════════════════════════════════════════════════════ -->
+        <Style TargetType="Page">
+            <Setter Property="Background" Value="{StaticResource PageBg}"/>
+        </Style>
+
+        <!-- ══ TextBlock ════════════════════════════════════════════════════ -->
+        <Style TargetType="TextBlock">
+            <Setter Property="Foreground" Value="{StaticResource TextPrimary}"/>
+            <Setter Property="FontFamily" Value="Segoe UI"/>
+        </Style>
+
+        <!-- ══ ScrollViewer ══════════════════════════════════════════════════ -->
+        <Style TargetType="ScrollViewer">
+            <Setter Property="Background" Value="Transparent"/>
+        </Style>
+
+        <!-- ══ Button — Arknights 좌측 액센트 스타일 ══════════════════════════ -->
         <Style TargetType="Button">
-            <Setter Property="Foreground" Value="White"/>
-            <Setter Property="BorderThickness" Value="0"/>
-            <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="Foreground"       Value="{StaticResource TextPrimary}"/>
+            <Setter Property="BorderThickness"  Value="0"/>
+            <Setter Property="Cursor"           Value="Hand"/>
+            <Setter Property="FontSize"         Value="13"/>
+            <Setter Property="FontFamily"       Value="Segoe UI"/>
+            <Setter Property="FontWeight"       Value="SemiBold"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
-                        <Border x:Name="Bd"
-                                Background="{TemplateBinding Background}"
-                                CornerRadius="4"
-                                Padding="{TemplateBinding Padding}">
-                            <ContentPresenter HorizontalAlignment="Center"
+                        <Grid>
+                            <!-- 배경 패널 -->
+                            <Border x:Name="Bg"
+                                    Background="{TemplateBinding Background}"
+                                    BorderBrush="{StaticResource BorderCyan}"
+                                    BorderThickness="1"/>
+                            <!-- 좌측 액센트 라인 -->
+                            <Rectangle x:Name="AccentLine"
+                                       Width="3" HorizontalAlignment="Left"
+                                       Fill="{StaticResource AccentCyan}" Opacity="0.8"/>
+                            <!-- 콘텐츠 -->
+                            <ContentPresenter Margin="10,0,6,0"
+                                              HorizontalAlignment="Center"
                                               VerticalAlignment="Center"/>
-                        </Border>
+                        </Grid>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="Bd" Property="Opacity" Value="0.82"/>
+                                <Setter TargetName="Bg"         Property="Background">
+                                    <Setter.Value><SolidColorBrush Color="#1E3A5F"/></Setter.Value>
+                                </Setter>
+                                <Setter TargetName="AccentLine" Property="Opacity" Value="1"/>
                             </Trigger>
                             <Trigger Property="IsPressed" Value="True">
-                                <Setter TargetName="Bd" Property="Opacity" Value="0.65"/>
+                                <Setter TargetName="Bg"         Property="Opacity" Value="0.75"/>
+                                <Setter TargetName="AccentLine" Property="Fill">
+                                    <Setter.Value><SolidColorBrush Color="#F59E0B"/></Setter.Value>
+                                </Setter>
                             </Trigger>
                             <Trigger Property="IsEnabled" Value="False">
-                                <Setter TargetName="Bd" Property="Opacity" Value="0.35"/>
+                                <Setter TargetName="Bg"         Property="Opacity" Value="0.30"/>
+                                <Setter TargetName="AccentLine" Property="Opacity" Value="0.20"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -40,20 +91,11 @@
             </Setter>
         </Style>
 
-        <!-- 전역 TextBlock: 기본 흰색 -->
-        <Style TargetType="TextBlock">
-            <Setter Property="Foreground" Value="#EEEEEE"/>
-            <Setter Property="FontFamily" Value="Segoe UI"/>
+        <!-- ══ Separator ════════════════════════════════════════════════════ -->
+        <Style TargetType="Separator">
+            <Setter Property="Background" Value="{StaticResource BorderCyan}"/>
+            <Setter Property="Height"     Value="1"/>
         </Style>
 
-        <!-- Page 배경 -->
-        <Style TargetType="Page">
-            <Setter Property="Background" Value="#1B1F24"/>
-        </Style>
-
-        <!-- ScrollViewer 배경 투명 -->
-        <Style TargetType="ScrollViewer">
-            <Setter Property="Background" Value="Transparent"/>
-        </Style>
     </Application.Resources>
 </Application>

@@ -9,18 +9,18 @@ public static class StageCatalog
     public const double MapWidth  = 1100;
     public const double MapHeight = 620;
 
-    // ─── Stage theme ───────────────────────────────────────────────────
+    // ─── Stage theme (5 themes × 4 stages = 20 total) ───────────────────
     private static StageTheme ThemeForStage(int n) => n switch
     {
-        <= 5  => StageTheme.Grassland,
-        <= 10 => StageTheme.Forest,
-        <= 15 => StageTheme.Desert,
-        <= 20 => StageTheme.Volcano,
-        <= 25 => StageTheme.Snow,
+        <= 4  => StageTheme.Grassland,
+        <= 8  => StageTheme.Forest,
+        <= 12 => StageTheme.Desert,
+        <= 16 => StageTheme.Volcano,
         _     => StageTheme.Castle
     };
 
     // ─── Flavored stage names (must come BEFORE Stages = Build()) ──────
+    // Bosses: 5 (mid), 10 (boss), 13 (split-mid), 15 (split-boss), 20 (final)
     private static readonly string[] StageNames =
     {
         /* 01 */ "초원의 관문",
@@ -30,89 +30,79 @@ public static class StageCatalog
         /* 05 */ "초원의 마지막 함성",   // mid-boss
         /* 06 */ "흑림의 입구",
         /* 07 */ "나무꾼의 길",
-        /* 08 */ "안개 지대",
-        /* 09 */ "어둠의 계곡",
-        /* 10 */ "숲의 군주",            // boss
-        /* 11 */ "사막의 시작",
-        /* 12 */ "모래 폭풍",
-        /* 13 */ "오아시스 방어",
-        /* 14 */ "낙타 대상의 길",
-        /* 15 */ "사막 황제",            // mid-boss
-        /* 16 */ "용암 지대",
-        /* 17 */ "화산의 분노",
-        /* 18 */ "불타는 협곡",
-        /* 19 */ "재의 도시",
-        /* 20 */ "화염 군주",            // boss
-        /* 21 */ "설원의 입구",
-        /* 22 */ "눈보라 고개",
-        /* 23 */ "얼음 궁전",
-        /* 24 */ "동결된 강",
-        /* 25 */ "설원의 지배자",        // mid-boss
-        /* 26 */ "마지막 성벽",
-        /* 27 */ "왕도의 방어",
-        /* 28 */ "요새 공성",
-        /* 29 */ "왕좌의 방",
-        /* 30 */ "암흑 황제",            // final boss
+        /* 08 */ "어둠의 계곡",
+        /* 09 */ "사막의 시작",
+        /* 10 */ "사막 황제",            // boss
+        /* 11 */ "모래 폭풍",
+        /* 12 */ "오아시스 방어",
+        /* 13 */ "분열의 협곡",          // split mid-boss
+        /* 14 */ "용암 지대",
+        /* 15 */ "분열 군주",            // split boss
+        /* 16 */ "화산의 분노",
+        /* 17 */ "마지막 성벽",
+        /* 18 */ "왕도의 방어",
+        /* 19 */ "왕좌의 방",
+        /* 20 */ "암흑 황제",            // final boss
     };
 
     public static readonly List<StageDef> Stages = Build();
 
-    // ─── Path layouts (6 shapes, one per 5-stage block) ─────────────────
+    // ─── Path layouts (Arknights-style: multiple spawns / objectives) ────
+    // Each lane: lane[0] = spawn (red box), lane[^1] = objective (blue box).
     private static List<List<Vec2>> PathFor(int n)
     {
-        if (n <= 5)
-            // Simple straight path
-            return new() { new() { new(40, 310), new(560, 310), new(1060, 310) } };
-
-        if (n <= 10)
-            // S-curve
-            return new() { new()
-            {
-                new(40, 100), new(300, 100), new(300, 310),
-                new(800, 310), new(800, 520), new(1060, 520)
-            }};
-
-        if (n <= 15)
-            // Two converging paths
+        if (n <= 4)
+            // 2 spawns (top-left, bottom-left) merge → 1 objective (right)
             return new()
             {
-                new() { new(40, 150), new(400, 150), new(550, 310), new(900, 310), new(1060, 310) },
-                new() { new(40, 470), new(400, 470), new(550, 310), new(900, 310), new(1060, 310) },
+                new() { new(40, 180), new(320, 180), new(560, 310), new(1060, 310) },
+                new() { new(40, 440), new(320, 440), new(560, 310), new(1060, 310) },
             };
 
-        if (n <= 20)
-            // Zigzag
-            return new() { new()
-            {
-                new(40, 80),  new(250, 80),  new(250, 540),
-                new(600, 540), new(600, 120), new(900, 120),
-                new(900, 540), new(1060, 540)
-            }};
-
-        if (n <= 25)
-            // Three paths merging to one exit
+        if (n <= 8)
+            // 2 spawns → 2 separate objectives (crossing lanes)
             return new()
             {
-                new() { new(40, 100), new(550, 100), new(550, 310), new(1060, 310) },
+                new() { new(40, 120), new(400, 120), new(400, 300), new(1060, 300) },
+                new() { new(40, 500), new(700, 500), new(700, 160), new(1060, 160) },
+            };
+
+        if (n <= 12)
+            // 3 spawns (top/mid/bottom) converge → 1 objective
+            return new()
+            {
+                new() { new(40, 110), new(520, 110), new(520, 310), new(1060, 310) },
                 new() { new(40, 310), new(1060, 310) },
-                new() { new(40, 520), new(550, 520), new(550, 310), new(1060, 310) },
+                new() { new(40, 510), new(520, 510), new(520, 310), new(1060, 310) },
             };
 
-        // Four-path cross (stages 26-30)
+        if (n <= 16)
+            // 2 spawns, independent zigzag lanes → 2 objectives
+            return new()
+            {
+                new() { new(40, 80), new(260, 80), new(260, 400), new(560, 400),
+                        new(560, 120), new(1060, 120) },
+                new() { new(40, 540), new(820, 540), new(820, 320), new(1060, 320) },
+            };
+
+        // 17-20: 3 spawns merge → 1 final objective (Castle / final block)
         return new()
         {
-            new() { new(40, 80),  new(400, 80),  new(400, 310), new(700, 310), new(700, 540), new(1060, 540) },
-            new() { new(40, 540), new(400, 540), new(400, 310), new(700, 310), new(700, 80),  new(1060, 80)  },
-            new() { new(40, 200), new(900, 200), new(900, 420), new(1060, 420) },
-            new() { new(40, 420), new(900, 420), new(900, 200), new(1060, 200) },
+            new() { new(40, 90),  new(560, 90),  new(560, 310), new(1060, 310) },
+            new() { new(40, 310), new(1060, 310) },
+            new() { new(40, 530), new(560, 530), new(560, 310), new(1060, 310) },
         };
     }
 
     // ─── Wave generation ────────────────────────────────────────────────
+    // Wave count policy (per user request):
+    //   • Regular stages         → 8 waves total
+    //   • Mid-boss / Boss stages → 10 waves total (9 regular + 1 boss wave appended below)
     private static List<WaveDef> WavesFor(int stage)
     {
         var rand = new Random(stage * 7919);
-        int waveCount = stage switch { <= 5 => 4, <= 10 => 6, <= 15 => 7, <= 20 => 8, <= 25 => 9, _ => 10 };
+        bool hasBossWave = HasMidBossFor(stage) || HasBossFor(stage);
+        int waveCount = hasBossWave ? 9 : 8;
         int pathCount = PathFor(stage).Count;
         double baseInterval = Math.Max(0.30, 0.90 - stage * 0.012);
         var waves = new List<WaveDef>();
@@ -122,17 +112,35 @@ public static class StageCatalog
             double wavePower = 10 + stage * 2.2 + w * 2.8;
             var wave = new WaveDef { TimeUntilNext = 22 + stage * 0.5 };
 
-            // ── Primary enemy ──
+            // ── Primary enemy — split across multiple spawn lanes ──
             EnemyKind primary = PickPrimary(stage, rand);
             int primaryCount = (int)Math.Max(3, wavePower / EnemyWeight(primary));
-            wave.Entries.Add(new WaveEntry
+            if (pathCount > 1)
             {
-                Enemy         = primary,
-                Count         = primaryCount,
-                SpawnInterval = baseInterval,
-                SpawnPath     = rand.Next(pathCount),
-                InitialDelay  = 0
-            });
+                // Spread the batch over two different lanes so enemies pour in
+                // from several spawn points simultaneously (Arknights feel).
+                int laneA = w % pathCount;
+                int laneB = (laneA + 1) % pathCount;
+                int half  = Math.Max(2, primaryCount / 2);
+                wave.Entries.Add(new WaveEntry
+                {
+                    Enemy = primary, Count = half,
+                    SpawnInterval = baseInterval, SpawnPath = laneA, InitialDelay = 0
+                });
+                wave.Entries.Add(new WaveEntry
+                {
+                    Enemy = primary, Count = primaryCount - half,
+                    SpawnInterval = baseInterval, SpawnPath = laneB, InitialDelay = 0.6
+                });
+            }
+            else
+            {
+                wave.Entries.Add(new WaveEntry
+                {
+                    Enemy = primary, Count = primaryCount,
+                    SpawnInterval = baseInterval, SpawnPath = 0, InitialDelay = 0
+                });
+            }
 
             // ── Secondary enemy (waves 2+, increasing chance) ──
             if (w >= 1 && stage >= 2 && rand.NextDouble() < 0.40 + w * 0.07)
@@ -255,41 +263,42 @@ public static class StageCatalog
         return list;
     }
 
-    // ─── Environment effects ────────────────────────────────────────────
+    // ─── Environment effects (aligned to new 4-stage theme blocks) ─────
     private static List<EnvEffect> EffectsFor(int n)
     {
         var fx = new List<EnvEffect>();
-        if (n is >= 16 and <= 20) { fx.Add(EnvEffect.LavaTiles); fx.Add(EnvEffect.NightVision); }
-        if (n is >= 21 and <= 25)   fx.Add(EnvEffect.IcePath);
-        if (n is >= 11 and <= 15)   fx.Add(EnvEffect.NarrowCorridor);
+        if (n is >= 9  and <= 12) fx.Add(EnvEffect.NarrowCorridor);              // Desert
+        if (n is >= 13 and <= 16) { fx.Add(EnvEffect.LavaTiles); fx.Add(EnvEffect.NightVision); } // Volcano
+        // Castle (17-20) has no special effect
         return fx;
     }
 
-    // ─── Difficulty curves ──────────────────────────────────────────────
+    // ─── Difficulty curves (rescaled for 20-stage campaign) ─────────────
     /// <summary>
     /// 적 체력 배율 — 1~4는 학습용으로 매우 쉽게(0.55~0.85),
-    /// 5는 첫 중간보스 기준선(1.0), 6~30은 매 스테이지 +0.10 으로 점진 상승.
-    /// (1: 0.55, 2: 0.65, 3: 0.75, 4: 0.85, 5: 1.00, 6: 1.00, …, 30: 3.40)
+    /// 5는 첫 중간보스 기준선(1.0), 이후 +0.13 씩 상승해 최종 stage 20 ≈ 2.95.
+    /// (1: 0.55, 2: 0.65, 3: 0.75, 4: 0.85, 5: 1.00, …, 10: 1.65, 15: 2.30, 20: 2.95)
     /// </summary>
     private static double HpScaleFor(int n)
     {
         if (n <= 4) return 0.55 + (n - 1) * 0.10;   // 0.55, 0.65, 0.75, 0.85
-        if (n == 5) return 1.00;                    // 중간보스 기준선
-        return 1.00 + (n - 5) * 0.10;               // 6=1.00, 7=1.10, …, 30=3.50
+        return 1.00 + (n - 5) * 0.13;               // 5=1.00, 10=1.65, 20=2.95
     }
 
-    /// <summary>적 속도 배율 — 초반 둔하게, 후반은 원래 페이스 유지.</summary>
+    /// <summary>적 속도 배율 — 초반 둔하게, 후반은 약간 빠르게 (stage 20 ≈ 1.30).</summary>
     private static double SpeedScaleFor(int n)
     {
         if (n <= 4) return 0.85 + (n - 1) * 0.04;   // 0.85, 0.89, 0.93, 0.97
-        return 1.00 + (n - 5) * 0.015;              // 5=1.00, …, 30=1.375
+        return 1.00 + (n - 5) * 0.020;              // 5=1.00, 10=1.10, 20=1.30
     }
 
     // ─── Build list ─────────────────────────────────────────────────────
+    private const int TotalStages = 20;
+
     private static List<StageDef> Build()
     {
         var list = new List<StageDef>();
-        for (int n = 1; n <= 30; n++)
+        for (int n = 1; n <= TotalStages; n++)
         {
             var paths = PathFor(n);
             list.Add(new StageDef

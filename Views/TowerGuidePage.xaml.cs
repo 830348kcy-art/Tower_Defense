@@ -122,27 +122,18 @@ public partial class TowerGuidePage : Page
     private void BuildList()
     {
         TowerListPanel.Children.Clear();
-        TowerListPanel.Children.Add(new TextBlock
-        {
-            Text = "타워 목록",
-            FontSize = 16,
-            FontWeight = FontWeights.Bold,
-            Foreground = Brushes.LightGoldenrodYellow,
-            Margin = new Thickness(0, 0, 0, 12)
-        });
 
         foreach (var g in Guides)
         {
             bool sel = g.Kind == _selected;
             var btn = new Button
             {
-                Height = 56,
-                Margin = new Thickness(0, 4, 0, 4),
+                Height = 58,
+                Margin = new Thickness(8, 4, 8, 0),
                 Background = sel
-                    ? (Brush)new BrushConverter().ConvertFromString(g.GuideColorHex)!
-                    : new SolidColorBrush(Color.FromRgb(42, 50, 60)),
-                BorderThickness = new Thickness(sel ? 2 : 0),
-                BorderBrush = Brushes.White,
+                    ? new SolidColorBrush(Color.FromRgb(0x1E, 0x3A, 0x5F))
+                    : new SolidColorBrush(Color.FromRgb(0x11, 0x18, 0x27)),
+                BorderThickness = new Thickness(0),
                 Tag = g.Kind,
                 Content = BuildListItem(g, sel)
             };
@@ -274,9 +265,10 @@ public partial class TowerGuidePage : Page
     {
         var border = new Border
         {
-            Background = new SolidColorBrush(Color.FromRgb(30, 38, 50)),
-            CornerRadius = new CornerRadius(6),
-            Margin = new Thickness(0, 4, 0, 4),
+            Background = new SolidColorBrush(Color.FromRgb(0x11, 0x18, 0x27)),
+            BorderBrush = new SolidColorBrush(Color.FromRgb(0x16, 0x4E, 0x63)),
+            BorderThickness = new Thickness(0, 0, 0, 1),
+            Margin = new Thickness(0, 2, 0, 2),
             Padding = new Thickness(14, 10, 14, 10)
         };
 
@@ -361,11 +353,10 @@ public partial class TowerGuidePage : Page
         var border = new Border
         {
             Background = (Brush)new BrushConverter().ConvertFromString(b.ColorHex)! is SolidColorBrush cb
-                ? new SolidColorBrush(Color.FromArgb(60, cb.Color.R, cb.Color.G, cb.Color.B))
+                ? new SolidColorBrush(Color.FromArgb(38, cb.Color.R, cb.Color.G, cb.Color.B))
                 : Brushes.Transparent,
             BorderBrush = (Brush)new BrushConverter().ConvertFromString(b.ColorHex)!,
-            BorderThickness = new Thickness(2),
-            CornerRadius = new CornerRadius(8),
+            BorderThickness = new Thickness(1),
             Padding = new Thickness(16)
         };
         var sp = new StackPanel();
@@ -428,14 +419,22 @@ public partial class TowerGuidePage : Page
         _ => System.Array.Empty<string>()
     };
 
-    private static TextBlock Label(string text) => new()
+    private static UIElement Label(string text)
     {
-        Text = text,
-        FontSize = 16,
-        FontWeight = FontWeights.Bold,
-        Foreground = Brushes.LightGoldenrodYellow,
-        Margin = new Thickness(0, 0, 0, 10)
-    };
+        var sp = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 10) };
+        sp.Children.Add(new Rectangle
+        {
+            Width = 3, Height = 16, Fill = new SolidColorBrush(Color.FromRgb(0x00, 0xD4, 0xFF)),
+            Margin = new Thickness(0, 0, 8, 0), VerticalAlignment = VerticalAlignment.Center
+        });
+        sp.Children.Add(new TextBlock
+        {
+            Text = text, FontSize = 15, FontWeight = FontWeights.Bold,
+            Foreground = new SolidColorBrush(Color.FromRgb(0xE5, 0xE7, 0xEB)),
+            VerticalAlignment = VerticalAlignment.Center
+        });
+        return sp;
+    }
 
     private static TextBlock Body(string text) => new()
     {

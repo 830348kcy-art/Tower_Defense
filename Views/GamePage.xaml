@@ -1,105 +1,235 @@
 <Page x:Class="KingdomRushClone.Views.GamePage"
       xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
       xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-      Title="Game" Background="#1B1F24"
+      Title="Game" Background="#0D1117"
       Focusable="True" KeyDown="OnKey">
     <Grid>
         <Grid.RowDefinitions>
-            <RowDefinition Height="40"/>
+            <RowDefinition Height="48"/>
             <RowDefinition Height="*"/>
-            <RowDefinition Height="60"/>
+            <RowDefinition Height="64"/>
         </Grid.RowDefinitions>
 
-        <!-- ══ HUD TOP ════════════════════════════════════════════════════ -->
-        <DockPanel Grid.Row="0" Background="#222831" LastChildFill="False">
-            <Button Content="◀ 메뉴" Width="80" Click="OnExit"
-                    Background="#455A64" Foreground="White" BorderThickness="0" Margin="6"/>
-            <TextBlock x:Name="StageText"  Foreground="#FFD369" FontSize="15" FontWeight="Bold"
-                       VerticalAlignment="Center" Margin="12,0"/>
-            <TextBlock x:Name="GoldText"   Foreground="#FFD369" FontSize="15"
-                       VerticalAlignment="Center" Margin="12,0"/>
-            <TextBlock x:Name="LivesText"  Foreground="#E63946" FontSize="15"
-                       VerticalAlignment="Center" Margin="12,0"/>
-            <TextBlock x:Name="WaveText"   Foreground="#EEEEEE" FontSize="15"
-                       VerticalAlignment="Center" Margin="12,0"/>
-            <Button x:Name="SpeedBtn"  Content="속도: 1x"  Width="82" Click="OnSpeed"
-                    Background="#3F51B5" Foreground="White" BorderThickness="0"
-                    Margin="6" DockPanel.Dock="Right"/>
-            <Button x:Name="PauseBtn"  Content="일시정지"  Width="82" Click="OnPause"
-                    Background="#FF9800" Foreground="White" BorderThickness="0"
-                    Margin="6" DockPanel.Dock="Right"/>
-        </DockPanel>
+        <!-- ══ HUD TOP ════════════════════════════════════════════════════════ -->
+        <Grid Grid.Row="0" Background="#0A0F1A">
+            <Rectangle Height="1" VerticalAlignment="Bottom" Fill="#164E63"/>
+            <Rectangle Width="4" HorizontalAlignment="Left" Fill="#00D4FF"/>
 
-        <!-- ══ GAME AREA ══════════════════════════════════════════════════ -->
+            <DockPanel Margin="8,0" LastChildFill="False" VerticalAlignment="Center">
+                <Button Content="◀  MENU" Width="88" Height="32"
+                        Click="OnExit" Margin="0,0,8,0"
+                        Background="#111827" DockPanel.Dock="Left"/>
+
+                <Rectangle Width="1" Fill="#164E63" Margin="0,6" DockPanel.Dock="Left"/>
+
+                <!-- 스테이지 이름 -->
+                <StackPanel Orientation="Horizontal" Margin="12,0,0,0"
+                            DockPanel.Dock="Left" VerticalAlignment="Center">
+                    <TextBlock Text="STAGE" Foreground="#4B5563" FontSize="9" FontWeight="Bold"
+                               VerticalAlignment="Center" Margin="0,0,6,0"/>
+                    <TextBlock x:Name="StageText" Foreground="#00D4FF" FontSize="14"
+                               FontWeight="Bold" VerticalAlignment="Center"/>
+                </StackPanel>
+
+                <Rectangle Width="1" Fill="#164E63" Margin="12,6" DockPanel.Dock="Left"/>
+
+                <!-- 골드 -->
+                <StackPanel Orientation="Horizontal" Margin="8,0,0,0"
+                            DockPanel.Dock="Left" VerticalAlignment="Center">
+                    <TextBlock Text="◈" Foreground="#F59E0B" FontSize="15"
+                               Margin="0,0,5,0" VerticalAlignment="Center"/>
+                    <TextBlock x:Name="GoldText" Foreground="#F59E0B" FontSize="14"
+                               FontWeight="Bold" VerticalAlignment="Center"/>
+                </StackPanel>
+
+                <Rectangle Width="1" Fill="#164E63" Margin="10,6" DockPanel.Dock="Left"/>
+
+                <!-- 라이프 -->
+                <StackPanel Orientation="Horizontal" Margin="8,0,0,0"
+                            DockPanel.Dock="Left" VerticalAlignment="Center">
+                    <TextBlock Text="♥" Foreground="#EF4444" FontSize="14"
+                               Margin="0,0,5,0" VerticalAlignment="Center"/>
+                    <TextBlock x:Name="LivesText" Foreground="#EF4444" FontSize="14"
+                               FontWeight="Bold" VerticalAlignment="Center"/>
+                </StackPanel>
+
+                <Rectangle Width="1" Fill="#164E63" Margin="10,6" DockPanel.Dock="Left"/>
+
+                <!-- 웨이브 -->
+                <StackPanel Orientation="Horizontal" Margin="8,0,0,0"
+                            DockPanel.Dock="Left" VerticalAlignment="Center">
+                    <TextBlock Text="WAVE" Foreground="#4B5563" FontSize="9" FontWeight="Bold"
+                               Margin="0,0,6,0" VerticalAlignment="Center"/>
+                    <TextBlock x:Name="WaveText" Foreground="#E5E7EB" FontSize="14"
+                               VerticalAlignment="Center"/>
+                </StackPanel>
+
+                <!-- 우측 컨트롤 -->
+                <Button x:Name="SpeedBtn" Content="1×" Width="56" Height="32"
+                        Click="OnSpeed" Background="#1C2333"
+                        Margin="6,0" DockPanel.Dock="Right"/>
+                <Button x:Name="PauseBtn" Content="⏸  PAUSE" Width="96" Height="32"
+                        Click="OnPause" Background="#1C2333"
+                        Margin="6,0" DockPanel.Dock="Right"/>
+            </DockPanel>
+        </Grid>
+
+        <!-- ══ GAME AREA ════════════════════════════════════════════════════ -->
         <Grid Grid.Row="1">
-            <!-- Canvas -->
-            <Border Background="#0F1419">
+            <!-- 캔버스 영역 -->
+            <Border>
+                <Border.Background>
+                    <DrawingBrush TileMode="Tile" Viewport="0,0,40,40"
+                                  ViewportUnits="Absolute" Opacity="0.05">
+                        <DrawingBrush.Drawing>
+                            <GeometryDrawing>
+                                <GeometryDrawing.Geometry>
+                                    <GeometryGroup>
+                                        <LineGeometry StartPoint="40,0"  EndPoint="40,40"/>
+                                        <LineGeometry StartPoint="0,40"  EndPoint="40,40"/>
+                                    </GeometryGroup>
+                                </GeometryDrawing.Geometry>
+                                <GeometryDrawing.Pen>
+                                    <Pen Brush="#00D4FF" Thickness="0.6"/>
+                                </GeometryDrawing.Pen>
+                            </GeometryDrawing>
+                        </DrawingBrush.Drawing>
+                    </DrawingBrush>
+                </Border.Background>
                 <Canvas x:Name="GameCanvas" Width="1100" Height="620"
-                        Background="#1B2733" ClipToBounds="True"
+                        Background="Transparent" ClipToBounds="True"
                         MouseLeftButtonDown="OnCanvasClick"/>
             </Border>
 
-            <!-- Boss HP bar (collapsed when no boss) -->
-            <Border x:Name="BossHpPanel" VerticalAlignment="Top"
-                    Background="#CC220000" Height="24"
+            <!-- ── Boss HP Panel (좌상단 전술 카드) ──────────────────────── -->
+            <Border x:Name="BossHealthPanel" Width="276" Margin="14,14,0,0"
+                    HorizontalAlignment="Left" VerticalAlignment="Top"
+                    Background="#CC0A0F1A" BorderBrush="#00D4FF" BorderThickness="1"
                     Visibility="Collapsed" IsHitTestVisible="False">
-                <DockPanel Margin="10,2">
-                    <TextBlock x:Name="BossNameText"
-                               Foreground="#FF5252" FontWeight="Bold" FontSize="13"
-                               VerticalAlignment="Center" DockPanel.Dock="Left" Margin="0,0,12,0"/>
-                    <ProgressBar x:Name="BossHpBar" Value="100" Maximum="100"
-                                 Background="#440000" BorderThickness="0"
-                                 VerticalAlignment="Center" Height="14">
-                        <ProgressBar.Foreground>
-                            <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
-                                <GradientStop Color="#FF1744" Offset="0"/>
-                                <GradientStop Color="#FF6D00" Offset="0.6"/>
-                                <GradientStop Color="#FFD600" Offset="1"/>
-                            </LinearGradientBrush>
-                        </ProgressBar.Foreground>
-                    </ProgressBar>
-                </DockPanel>
+                <Grid>
+                    <!-- 좌측 액센트 블록 -->
+                    <Rectangle Width="4" HorizontalAlignment="Left" Fill="#00D4FF"/>
+                    <StackPanel Margin="12,8,8,8">
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,5">
+                            <TextBlock Text="TARGET ▸" Foreground="#00D4FF" FontSize="9"
+                                       FontWeight="Bold" VerticalAlignment="Center" Margin="0,0,7,0"/>
+                            <TextBlock x:Name="BossHealthName" Foreground="#F59E0B"
+                                       FontWeight="Bold" FontSize="13"/>
+                        </StackPanel>
+                        <!-- HP 바 세그먼트 스타일 -->
+                        <Grid Width="236" Height="10" HorizontalAlignment="Left" Margin="0,0,0,4">
+                            <Rectangle Fill="#0D1117"/>
+                            <Rectangle x:Name="BossHealthFill" Width="236" Fill="#EF4444"
+                                       HorizontalAlignment="Left"/>
+                            <Path Data="M47,0 L47,10 M94,0 L94,10 M141,0 L141,10 M188,0 L188,10"
+                                  Stroke="#0D1117" StrokeThickness="2" Opacity="0.7"/>
+                        </Grid>
+                        <TextBlock x:Name="BossHealthText" Foreground="#9CA3AF"
+                                   FontSize="11" FontFamily="Consolas"/>
+                    </StackPanel>
+                </Grid>
             </Border>
 
-            <!-- Red flash when lives are lost -->
+            <!-- ── 라이프 플래시 ──────────────────────────────────────────── -->
             <Border x:Name="LivesFlashBorder"
-                    BorderBrush="#CCFF1744" BorderThickness="10"
+                    BorderBrush="#CCEF4444" BorderThickness="12"
                     IsHitTestVisible="False" Visibility="Collapsed" Opacity="0"/>
 
-            <!-- Wave announcement banner -->
+            <!-- ── 웨이브 배너 ─────────────────────────────────────────────── -->
             <Grid x:Name="AnnounceOverlay"
                   IsHitTestVisible="False" Visibility="Collapsed"
-                  HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,55,0,0">
-                <Border Background="#DD000000" CornerRadius="10" Padding="36,12">
-                    <TextBlock x:Name="AnnounceText"
-                               FontSize="26" FontWeight="Bold" Foreground="#FFD369"
-                               HorizontalAlignment="Center"/>
+                  HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,58,0,0">
+                <Border Background="#E50A0F1A" BorderBrush="#00D4FF"
+                        BorderThickness="0,1,0,1" Padding="52,10">
+                    <Grid>
+                        <Path HorizontalAlignment="Left" Margin="-20,0,0,0" VerticalAlignment="Center"
+                              Data="M0,0 L18,14 L0,28 Z" Fill="#00D4FF" Opacity="0.7"/>
+                        <Path HorizontalAlignment="Right" Margin="0,0,-20,0" VerticalAlignment="Center"
+                              Data="M18,0 L0,14 L18,28 Z" Fill="#00D4FF" Opacity="0.7"/>
+                        <TextBlock x:Name="AnnounceText"
+                                   FontSize="22" FontWeight="Bold"
+                                   Foreground="#00D4FF"
+                                   HorizontalAlignment="Center"
+                                   FontFamily="Segoe UI"/>
+                    </Grid>
                 </Border>
             </Grid>
         </Grid>
 
-        <!-- ══ BOTTOM BAR ═════════════════════════════════════════════════ -->
-        <DockPanel Grid.Row="2" Background="#222831" LastChildFill="False">
-            <Button x:Name="CallWaveBtn" Content="다음 웨이브  N" Width="170"
-                    Click="OnCallWave" Background="#2E7D32" Foreground="White"
-                    BorderThickness="0" Margin="6"/>
-            <TextBlock x:Name="NextWaveTimer"   Foreground="#AAAAAA" FontSize="13"
-                       VerticalAlignment="Center" Margin="6,0"/>
-            <TextBlock x:Name="NextWavePreview" Foreground="#88CCFF" FontSize="12"
-                       VerticalAlignment="Center" Margin="6,0"/>
-            <Button x:Name="MeteorBtn"    Content="🔥 화포 [1]"   Width="140"
-                    Click="OnMeteor"    Background="#D84315" Foreground="White"
-                    BorderThickness="0" Margin="6"/>
-            <Button x:Name="ReinforceBtn" Content="🛡 지원군 [2]" Width="140"
-                    Click="OnReinforce" Background="#1976D2" Foreground="White"
-                    BorderThickness="0" Margin="6"/>
-            <TextBlock x:Name="HintText" Foreground="#FFD369" FontSize="13"
-                       VerticalAlignment="Center" Margin="20,0"
-                       DockPanel.Dock="Right"/>
-        </DockPanel>
+        <!-- ══ BOTTOM BAR ════════════════════════════════════════════════════ -->
+        <Grid Grid.Row="2" Background="#0A0F1A">
+            <Rectangle Height="1" VerticalAlignment="Top" Fill="#164E63"/>
+            <Rectangle Width="4" HorizontalAlignment="Right" Fill="#00D4FF" Opacity="0.4"/>
 
-        <!-- ══ OVERLAY (build / upgrade / tutorial / result) ════════════ -->
-        <Grid x:Name="Overlay" Grid.Row="1" Background="#88000000" Visibility="Collapsed">
+            <DockPanel Margin="8,0" LastChildFill="False" VerticalAlignment="Center">
+                <!-- 다음 웨이브 버튼 -->
+                <Button x:Name="CallWaveBtn" Content="▶  NEXT WAVE  [N]"
+                        Width="176" Height="42"
+                        Click="OnCallWave" Background="#0D2E0E"
+                        DockPanel.Dock="Left" Margin="0,0,4,0"/>
+
+                <!-- 타이머 + 미리보기 -->
+                <StackPanel Orientation="Vertical" DockPanel.Dock="Left"
+                            VerticalAlignment="Center" Margin="8,0,4,0">
+                    <TextBlock x:Name="NextWaveTimer"   Foreground="#9CA3AF"
+                               FontSize="11" FontFamily="Consolas"/>
+                    <TextBlock x:Name="NextWavePreview" Foreground="#0EA5E9" FontSize="11"/>
+                </StackPanel>
+
+                <Rectangle Width="1" Fill="#164E63" Margin="8,6" DockPanel.Dock="Left"/>
+
+                <!-- 화포 스킬 버튼 -->
+                <Button x:Name="MeteorBtn" Width="154" Height="42"
+                        Click="OnMeteor" Background="#2D0D05"
+                        DockPanel.Dock="Left" Margin="0,0,4,0">
+                    <Grid>
+                        <StackPanel Orientation="Horizontal" Margin="4,0">
+                            <TextBlock Text="🔥" FontSize="18" VerticalAlignment="Center" Margin="0,0,7,0"/>
+                            <StackPanel VerticalAlignment="Center">
+                                <TextBlock Text="화  포" FontSize="12" FontWeight="Bold" Foreground="#E5E7EB"/>
+                                <TextBlock Text="[1]  METEOR" FontSize="9" Foreground="#9CA3AF"/>
+                            </StackPanel>
+                        </StackPanel>
+                        <!-- 쿨다운 셰이드 -->
+                        <Border x:Name="MeteorCdShade" Background="#CC0A0F1A" Visibility="Collapsed"
+                                Margin="-12,0,-8,0">
+                            <TextBlock x:Name="MeteorCdText" Foreground="#F59E0B" FontSize="18"
+                                       FontWeight="Bold" FontFamily="Consolas"
+                                       HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                    </Grid>
+                </Button>
+
+                <!-- 지원군 스킬 버튼 -->
+                <Button x:Name="ReinforceBtn" Width="154" Height="42"
+                        Click="OnReinforce" Background="#0D1A2D"
+                        DockPanel.Dock="Left" Margin="0,0,4,0">
+                    <Grid>
+                        <StackPanel Orientation="Horizontal" Margin="4,0">
+                            <TextBlock Text="🛡" FontSize="18" VerticalAlignment="Center" Margin="0,0,7,0"/>
+                            <StackPanel VerticalAlignment="Center">
+                                <TextBlock Text="지원군" FontSize="12" FontWeight="Bold" Foreground="#E5E7EB"/>
+                                <TextBlock Text="[2]  SUPPORT" FontSize="9" Foreground="#9CA3AF"/>
+                            </StackPanel>
+                        </StackPanel>
+                        <Border x:Name="ReinforceCdShade" Background="#CC0A0F1A" Visibility="Collapsed"
+                                Margin="-12,0,-8,0">
+                            <TextBlock x:Name="ReinforceCdText" Foreground="#00D4FF" FontSize="18"
+                                       FontWeight="Bold" FontFamily="Consolas"
+                                       HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                    </Grid>
+                </Button>
+
+                <!-- 힌트 (우측) -->
+                <TextBlock x:Name="HintText" Foreground="#F59E0B" FontSize="12"
+                           VerticalAlignment="Center" Margin="16,0"
+                           DockPanel.Dock="Right"/>
+            </DockPanel>
+        </Grid>
+
+        <!-- ══ OVERLAY (건설/업그레이드/결과) ════════════════════════════════ -->
+        <Grid x:Name="Overlay" Grid.Row="1" Background="#AA0D1117" Visibility="Collapsed">
             <ContentControl x:Name="OverlayContent"
                             HorizontalAlignment="Center" VerticalAlignment="Center"/>
         </Grid>
