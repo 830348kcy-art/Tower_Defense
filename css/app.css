@@ -1,0 +1,133 @@
+* { box-sizing: border-box; }
+
+html, body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    font-family: "Segoe UI", "Malgun Gothic", sans-serif;
+    background: #12161c;
+    color: #e8eaed;
+}
+
+.app-main { height: 100%; }
+
+/* ── Boot screen ───────────────────────────────────────── */
+.boot-screen {
+    position: fixed; inset: 0;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    gap: 12px; background: #12161c;
+}
+.boot-title { font-size: 28px; font-weight: 800; color: #ffd369; }
+.boot-sub { color: #9aa3ad; }
+
+/* ── Menus ─────────────────────────────────────────────── */
+.menu-screen {
+    min-height: 100vh;
+    display: flex; align-items: center; justify-content: center;
+    background: radial-gradient(circle at 50% 30%, #1f2731, #11151b);
+    padding: 24px;
+}
+.menu-card {
+    background: #1b2027; border: 1px solid #2c343f; border-radius: 14px;
+    padding: 40px 48px; text-align: center; max-width: 640px; width: 100%;
+    box-shadow: 0 20px 60px rgba(0,0,0,.45);
+}
+.menu-title { font-size: 34px; margin: 0 0 6px; color: #ffd369; }
+.menu-sub { color: #9aa3ad; margin: 0 0 28px; }
+.menu-stars { margin-top: 20px; color: #ffd369; font-weight: 600; }
+.menu-hint { margin-top: 14px; color: #7e8893; font-size: 12px; line-height: 1.6; }
+
+.menu-btn {
+    display: inline-block; border: none; border-radius: 8px;
+    padding: 12px 22px; margin: 6px; font-size: 15px; cursor: pointer;
+    background: #455a64; color: #fff; transition: filter .12s;
+}
+.menu-btn:hover { filter: brightness(1.12); }
+.menu-btn.primary { background: #2e9e3f; font-size: 18px; padding: 14px 36px; }
+.menu-btn.ghost { background: #303a45; }
+
+/* ── Stage select ──────────────────────────────────────── */
+.stage-wrap { width: 100%; max-width: 980px; }
+.stage-head { display: flex; align-items: center; gap: 16px; margin-bottom: 20px; }
+.stage-head h2 { margin: 0; flex: 1; }
+.stage-total { color: #ffd369; font-weight: 700; font-size: 18px; }
+.stage-grid {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 14px;
+}
+.stage-card {
+    background: #1b2027; border: 1px solid #2c343f; border-radius: 10px;
+    padding: 18px; cursor: pointer; text-align: left; color: #e8eaed;
+    transition: transform .1s, border-color .1s;
+}
+.stage-card:hover { transform: translateY(-2px); border-color: #ffd369; }
+.stage-num { font-size: 13px; color: #9aa3ad; }
+.stage-name { font-size: 17px; font-weight: 700; margin: 4px 0 10px; }
+.stage-stars span { font-size: 18px; }
+.stage-stars .on, .result-stars .on { color: #ffd369; }
+.stage-stars .off, .result-stars .off { color: #3a434e; }
+
+/* ── Game shell ────────────────────────────────────────── */
+.game-shell { display: flex; flex-direction: column; height: 100vh; background: #0f1419; }
+.game-toolbar {
+    display: flex; align-items: center; gap: 8px; padding: 6px 10px;
+    background: #222831; flex-wrap: wrap;
+}
+.tb-stage { color: #ffd369; font-weight: 700; }
+.tb-spacer { flex: 1; }
+.tb-btn {
+    border: none; border-radius: 6px; padding: 8px 12px; cursor: pointer;
+    background: #3f51b5; color: #fff; font-size: 13px;
+}
+.tb-btn:hover { filter: brightness(1.12); }
+.tb-btn.cooldown { background: #5a5f6b; opacity: .7; }
+
+.game-stage {
+    position: relative; flex: 1; display: flex;
+    align-items: center; justify-content: center; overflow: hidden;
+}
+#gameCanvas {
+    background: #1b2733; max-width: 100%; max-height: 100%;
+    width: auto; height: auto; display: block; touch-action: none;
+}
+
+/* ── Side panel (build / tower) ────────────────────────── */
+.side-panel {
+    position: absolute; top: 12px; right: 12px; width: 280px;
+    background: rgba(34,40,49,.97); border: 1px solid #3a434e; border-radius: 10px;
+    padding: 14px; box-shadow: 0 10px 30px rgba(0,0,0,.5);
+}
+.side-panel h3 { margin: 0 0 10px; color: #ffd369; font-size: 16px; }
+.panel-stats { color: #cfd4da; font-size: 12px; margin: 0 0 10px; }
+.panel-branch-label { color: #ffd369; font-weight: 700; font-size: 13px; margin: 8px 0 4px; }
+.panel-btn {
+    display: block; width: 100%; text-align: left; border: none; border-radius: 6px;
+    padding: 10px 12px; margin: 5px 0; cursor: pointer; color: #fff; font-size: 13px;
+    background: #3a4a5a;
+}
+.panel-btn:hover:not(:disabled) { filter: brightness(1.12); }
+.panel-btn:disabled { opacity: .45; cursor: default; }
+.panel-btn.upgrade { background: #1b6b2a; }
+.panel-btn.sell { background: #8b1a1a; }
+.panel-btn.cancel { background: #546e7a; text-align: center; }
+
+/* ── Result ────────────────────────────────────────────── */
+.result-panel {
+    position: absolute; left: 0; right: 0; margin: auto; width: 380px; height: fit-content;
+    top: 50%; transform: translateY(-50%);
+    background: rgba(20,24,32,.96); border: 1px solid #3a434e; border-radius: 14px;
+    padding: 32px; text-align: center;
+}
+.result-panel h2 { font-size: 44px; margin: 0 0 12px; }
+.result-panel h2.win { color: #7cff6b; }
+.result-panel h2.lose { color: #ff6b6b; }
+.result-stars { font-size: 30px; margin-bottom: 18px; }
+
+/* ── Blazor error UI ───────────────────────────────────── */
+#blazor-error-ui {
+    display: none; position: fixed; bottom: 0; left: 0; right: 0;
+    background: #b32121; color: #fff; padding: 10px 16px; z-index: 1000;
+}
+#blazor-error-ui .reload { color: #fff; text-decoration: underline; margin-left: 8px; }
+#blazor-error-ui .dismiss { cursor: pointer; float: right; }
