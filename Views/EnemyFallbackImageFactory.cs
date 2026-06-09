@@ -5,6 +5,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
+using KingdomRushClone.Data;
 using KingdomRushClone.Models;
 
 namespace KingdomRushClone.Views;
@@ -16,7 +17,7 @@ public static class EnemyFallbackImageFactory
 {
     private static readonly object CacheLock = new();
     private static readonly Dictionary<string, ImageSource> Cache = new();
-    private static readonly Dictionary<EnemyKind, ImageSource?> SpriteCache = new();
+    private static readonly Dictionary<string, ImageSource?> SpriteCache = new();
     private static readonly Dictionary<string, BitmapSource> SheetCache = new();
     private static readonly string[] SpriteExtensions = { ".png", ".jpg", ".jpeg", ".bmp", ".gif" };
     private const string SpriteSheetFileName = "EnemySpriteSheet.png";
@@ -57,18 +58,24 @@ public static class EnemyFallbackImageFactory
 
     public static FrameworkElement CreateIconVisual(EnemyKind kind, double size) => CreateVisual(kind, size);
 
-    /// <summary>Compatibility helper for older image-source call sites.</summary>
-    public static ImageSource CreateIcon(EnemyKind kind) => TryLoadSprite(kind) ?? Create(kind, includeBackground: false);
+    public static FrameworkElement CreateSpriteVisual(int chapter, EnemyKind kind, double size) => CreateVisual(chapter, kind, size);
+
+    public static FrameworkElement CreateIconVisual(int chapter, EnemyKind kind, double size) => CreateVisual(chapter, kind, size);
 
     /// <summary>Compatibility helper for older image-source call sites.</summary>
-    public static ImageSource CreateSprite(EnemyKind kind) => TryLoadSprite(kind) ?? Create(kind, includeBackground: false);
+    public static ImageSource CreateIcon(EnemyKind kind) => TryLoadSprite(null, kind) ?? Create(kind, includeBackground: false);
 
-    private static FrameworkElement CreateVisual(EnemyKind kind, double size)
+    /// <summary>Compatibility helper for older image-source call sites.</summary>
+    public static ImageSource CreateSprite(EnemyKind kind) => TryLoadSprite(null, kind) ?? Create(kind, includeBackground: false);
+
+    private static FrameworkElement CreateVisual(EnemyKind kind, double size) => CreateVisual(null, kind, size);
+
+    private static FrameworkElement CreateVisual(int? chapter, EnemyKind kind, double size)
     {
-        var sprite = TryLoadSprite(kind);
+        var sprite = TryLoadSprite(chapter, kind);
         if (sprite != null)
         {
-            return new Image
+            var image = new Image
             {
                 Width = size,
                 Height = size,
@@ -76,21 +83,24 @@ public static class EnemyFallbackImageFactory
                 Stretch = Stretch.Uniform,
                 IsHitTestVisible = false
             };
+            RenderOptions.SetBitmapScalingMode(image, BitmapScalingMode.HighQuality);
+            return image;
         }
 
         return new EnemyCodeVisual(kind, size);
     }
 
-    private static ImageSource? TryLoadSprite(EnemyKind kind)
+    private static ImageSource? TryLoadSprite(int? chapter, EnemyKind kind)
     {
+        string cacheKey = chapter.HasValue ? $"chapter:{chapter.Value}:{kind}" : $"global:{kind}";
         lock (CacheLock)
         {
-            if (SpriteCache.TryGetValue(kind, out var cached))
+            if (SpriteCache.TryGetValue(cacheKey, out var cached))
                 return cached;
         }
 
         ImageSource? source = null;
-        foreach (var path in CandidateSpritePaths(kind))
+        foreach (var path in CandidateSpritePaths(chapter, kind))
         {
             if (!File.Exists(path)) continue;
 
@@ -113,7 +123,7 @@ public static class EnemyFallbackImageFactory
 
         source ??= TryLoadSpriteSheetSprite(kind);
 
-        lock (CacheLock) { SpriteCache[kind] = source; }
+        lock (CacheLock) { SpriteCache[cacheKey] = source; }
         return source;
     }
 
@@ -161,8 +171,15 @@ public static class EnemyFallbackImageFactory
         return image;
     }
 
-    private static IEnumerable<string> CandidateSpritePaths(EnemyKind kind)
+    private static IEnumerable<string> CandidateSpritePaths(int? chapter, EnemyKind kind)
     {
+        if (chapter.HasValue)
+        {
+            foreach (var path in AssetPreviewCatalog.EnemyCandidates(chapter.Value, kind))
+                yield return path;
+            yield break;
+        }
+
         foreach (var root in CandidateAssetRoots())
         foreach (var extension in SpriteExtensions)
             yield return Path.Combine(root, $"{kind}{extension}");
@@ -229,10 +246,10 @@ public static class EnemyFallbackImageFactory
             case EnemyKind.MidBossCharge:    DrawMiniBoss(context, MiniBossColor); DrawChargeMark(context); return;
             case EnemyKind.MidBossSplit:     DrawSplit(context, MiniBossColor, 20, 17, true); DrawMiniBossBadge(context); return;
             case EnemyKind.MidBossSpeed:     DrawMiniBoss(context, Color.FromRgb(2, 132, 199)); DrawSpeedMark(context); return;
-            case EnemyKind.BossNormal:       DrawBoss(context, Color.FromRgb(74, 20, 140)); DrawCrownMark(context, Color.FromRgb(74, 20, 140)); return;
-            case EnemyKind.BossCharge:       DrawBoss(context, Color.FromRgb(180, 83, 9)); DrawChargeMark(context); return;
-            case EnemyKind.BossSplit:        DrawSplit(context, BossColor, 25, 21, true); DrawBossBadge(context); return;
-            case EnemyKind.BossSpeed:        DrawBoss(context, Color.FromRgb(3, 105, 161)); DrawSpeedMark(context); return;
+            case EnemyKind.BossNormal:       DrawBossFortress(context); return;
+            case EnemyKind.BossCharge:       DrawBossChargeBeast(context); return;
+            case EnemyKind.BossSplit:        DrawBossSplitBrood(context); return;
+            case EnemyKind.BossSpeed:        DrawBossSpeedCaster(context); return;
             default:                         DrawNormal(context); return;
         }
     }
@@ -315,11 +332,54 @@ public static class EnemyFallbackImageFactory
         context.DrawEllipse(Brush(ShineColor), null, new Point(32, 35), 4, 4);
     }
 
-    private static void DrawBoss(DrawingContext context, Color color)
+    private static void DrawBossFortress(DrawingContext context)
     {
-        context.DrawEllipse(Brush(color), Pen(InkColor, 2), new Point(40, 43), 28, 25);
-        context.DrawRectangle(Brush(Color.FromArgb(110, 255, 255, 255)), null, new Rect(23, 20, 34, 8));
-        context.DrawEllipse(Brush(Color.FromArgb(120, 255, 255, 255)), null, new Point(31, 34), 5, 5);
+        var color = Color.FromRgb(74, 20, 140);
+        context.DrawRoundedRectangle(Brush(color), Pen(InkColor, 2), new Rect(18, 18, 44, 47), 8, 8);
+        context.DrawRoundedRectangle(Brush(Color.FromRgb(88, 28, 135)), Pen(InkColor, 1.6), new Rect(7, 16, 16, 47), 5, 5);
+        context.DrawRoundedRectangle(Brush(Color.FromRgb(88, 28, 135)), Pen(InkColor, 1.6), new Rect(57, 16, 16, 47), 5, 5);
+        context.DrawRectangle(Brush(Color.FromRgb(126, 34, 206)), null, new Rect(24, 27, 32, 7));
+        context.DrawRectangle(Brush(Color.FromArgb(130, 255, 255, 255)), null, new Rect(25, 21, 30, 6));
+        DrawCrownMark(context, color);
+        context.DrawEllipse(Brush(ShineColor), null, new Point(31, 40), 5, 5);
+    }
+
+    private static void DrawBossChargeBeast(DrawingContext context)
+    {
+        var body = Geometry.Parse("M 11 54 C 14 32 29 22 51 25 C 63 27 70 35 72 47 C 60 63 33 69 14 60 Z");
+        var head = Geometry.Parse("M 51 31 C 64 28 73 35 74 44 C 68 51 58 51 50 45 Z");
+        var horn = Geometry.Parse("M 69 38 L 79 33 L 73 44 Z");
+        context.DrawGeometry(Brush(Color.FromRgb(180, 83, 9)), Pen(InkColor, 2), body);
+        context.DrawGeometry(Brush(Color.FromRgb(146, 64, 14)), Pen(InkColor, 1.7), head);
+        context.DrawGeometry(Brush(Color.FromRgb(254, 215, 170)), Pen(Color.FromRgb(120, 53, 15), 1.3), horn);
+        context.DrawLine(Pen(Color.FromRgb(251, 191, 36), 3), new Point(19, 36), new Point(44, 33));
+        context.DrawLine(Pen(Color.FromRgb(251, 191, 36), 3), new Point(16, 47), new Point(39, 46));
+        context.DrawEllipse(Brush(ShineColor), null, new Point(32, 34), 5, 5);
+    }
+
+    private static void DrawBossSplitBrood(DrawingContext context)
+    {
+        context.DrawEllipse(Brush(BossColor), Pen(InkColor, 2), new Point(33, 43), 26, 26);
+        context.DrawEllipse(Brush(Color.FromRgb(248, 113, 113)), Pen(InkColor, 1.8), new Point(54, 38), 20, 22);
+        context.DrawEllipse(Brush(Color.FromRgb(185, 28, 28)), Pen(InkColor, 1.4), new Point(61, 58), 12, 10);
+        context.DrawEllipse(Brush(Color.FromRgb(185, 28, 28)), Pen(InkColor, 1.4), new Point(71, 58), 8, 7);
+        context.DrawLine(Pen(Color.FromRgb(127, 29, 29), 2.2), new Point(37, 21), new Point(42, 40));
+        context.DrawLine(Pen(Color.FromRgb(127, 29, 29), 2.2), new Point(42, 40), new Point(36, 64));
+        context.DrawEllipse(Brush(ShineColor), null, new Point(27, 34), 5, 5);
+        DrawBossBadge(context);
+    }
+
+    private static void DrawBossSpeedCaster(DrawingContext context)
+    {
+        var cloak = Geometry.Parse("M 4 24 C 23 15 47 18 62 33 C 55 39 55 51 66 65 C 44 62 24 69 4 58 C 13 48 13 34 4 24 Z");
+        var body = Geometry.Parse("M 31 22 C 46 18 60 29 61 45 C 56 59 41 65 27 57 C 20 44 21 30 31 22 Z");
+        context.DrawGeometry(Brush(Color.FromRgb(12, 74, 110)), Pen(InkColor, 1.5), cloak);
+        context.DrawGeometry(Brush(Color.FromRgb(3, 105, 161)), Pen(InkColor, 2), body);
+        context.DrawLine(Pen(Color.FromRgb(186, 230, 253), 3), new Point(8, 32), new Point(29, 32));
+        context.DrawLine(Pen(Color.FromRgb(186, 230, 253), 3), new Point(6, 45), new Point(27, 45));
+        context.DrawLine(Pen(Color.FromRgb(186, 230, 253), 3), new Point(12, 58), new Point(32, 58));
+        context.DrawEllipse(Brush(ShineColor), null, new Point(36, 34), 5, 5);
+        DrawSpeedMark(context);
     }
 
     private static void DrawRegenMark(DrawingContext context)

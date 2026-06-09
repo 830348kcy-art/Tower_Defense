@@ -15,6 +15,8 @@ public class HitEffect
     public double TimeLeft;
     public double TotalTime;
     public string ColorHex = "#FFFFFF";
+    public bool Ring;
+    public double StrokeThickness = 3;
 }
 
 public class GameEngine
@@ -103,6 +105,7 @@ public class GameEngine
             {
                 Gold += e.Def.GoldReward + (int)SaveManager.TechEffect(TechId.KillGoldBonus);
                 if (e.EngagedBy != null) e.EngagedBy = null;
+                if (e.Def.IsBoss) SpawnBossDeathEffects(e);
                 SpawnDeathSpawns(e);
                 Enemies.RemoveAt(i);
             }
@@ -145,7 +148,7 @@ public class GameEngine
         double speedScale = Stage.EnemySpeedScale * (1 - SaveManager.TechEffect(TechId.EnemySpeedReduction));
         double maxHp      = def.MaxHp * hpScale;
 
-        return new EnemyInstance
+        var enemy = new EnemyInstance
         {
             Def           = def,
             Pos           = pos,
@@ -160,6 +163,9 @@ public class GameEngine
             RegenerateTimer = def.RegenerateInterval,
             GlobalSpeedBonusTimer = def.GlobalSpeedBonusInterval
         };
+
+        if (def.IsBoss) SpawnBossEntranceEffects(enemy);
+        return enemy;
     }
 
     /// <summary>
@@ -364,7 +370,39 @@ public class GameEngine
 
     public void SpawnHitEffect(Vec2 pos, double radius, string color)
     {
-        Effects.Add(new HitEffect { Pos = pos, Radius = radius, TimeLeft = 0.4, TotalTime = 0.4, ColorHex = color });
+        SpawnHitEffect(pos, radius, color, 0.4);
+    }
+
+    public void SpawnHitEffect(Vec2 pos, double radius, string color, double duration)
+    {
+        Effects.Add(new HitEffect { Pos = pos, Radius = radius, TimeLeft = duration, TotalTime = duration, ColorHex = color });
+    }
+
+    public void SpawnRingEffect(Vec2 pos, double radius, string color, double duration, double strokeThickness)
+    {
+        Effects.Add(new HitEffect
+        {
+            Pos = pos,
+            Radius = radius,
+            TimeLeft = duration,
+            TotalTime = duration,
+            ColorHex = color,
+            Ring = true,
+            StrokeThickness = strokeThickness
+        });
+    }
+
+    private void SpawnBossEntranceEffects(EnemyInstance boss)
+    {
+        SpawnRingEffect(boss.Pos, boss.Def.Radius * 2.5, "#FACC15", 0.65, 4);
+        SpawnRingEffect(boss.Pos, boss.Def.Radius * 3.2, "#FB923C", 0.85, 3);
+    }
+
+    private void SpawnBossDeathEffects(EnemyInstance boss)
+    {
+        SpawnRingEffect(boss.Pos, boss.Def.Radius * 3.4, "#F87171", 0.75, 5);
+        SpawnRingEffect(boss.Pos, boss.Def.Radius * 4.4, "#FACC15", 0.95, 3);
+        SpawnHitEffect(boss.Pos, boss.Def.Radius * 2.4, "#DC2626", 0.65);
     }
 
     public int ComputeStars()

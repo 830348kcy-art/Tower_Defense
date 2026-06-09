@@ -247,9 +247,9 @@ public static class TowerCatalog
             ProjectileColorHex = "#ADD8E6", // 투사체는 더 연한 하늘색
             Levels =
             {
-                new() { Cost = 80,  Damage = 1, Range = 50, AttackInterval = 2.0, DamageType = DamageType.Magic, SplashRadius = 60, SlowAmount = 0.40, SlowDuration = 2.0 },
-                new() { Cost = 70,  Damage = 2, Range = 60, AttackInterval = 1.9, DamageType = DamageType.Magic, SplashRadius = 65, SlowAmount = 0.45, SlowDuration = 2.2 },
-                new() { Cost = 110, Damage = 5, Range = 75, AttackInterval = 1.8, DamageType = DamageType.Magic, SplashRadius = 75, SlowAmount = 0.50, SlowDuration = 2.5 },
+                new() { Cost = 80,  Damage = 1, Range = 90,  AttackInterval = 2.0, DamageType = DamageType.Magic, SplashRadius = 80,  SlowAmount = 0.40, SlowDuration = 2.0 },
+                new() { Cost = 70,  Damage = 2, Range = 105, AttackInterval = 1.9, DamageType = DamageType.Magic, SplashRadius = 95,  SlowAmount = 0.45, SlowDuration = 2.2 },
+                new() { Cost = 110, Damage = 5, Range = 120, AttackInterval = 1.8, DamageType = DamageType.Magic, SplashRadius = 110, SlowAmount = 0.50, SlowDuration = 2.5 },
             },
             // 분기 기능은 기본값(None)으로 유지하거나 추후 확장 가능
             BranchA = null,

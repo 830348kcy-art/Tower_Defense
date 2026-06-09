@@ -5,6 +5,8 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Media.Effects;
+using System.Windows.Media.Imaging;
 using System.Windows.Shapes;
 using System.Windows.Threading;
 using KingdomRushClone.Data;
@@ -26,15 +28,26 @@ public partial class GamePage : Page
     // ─── Tile system ────────────────────────────────────────────────────
     private const double TileSize = 40;
     private readonly HashSet<(int c, int r)>             _buildableTiles = new();
+    public const int TowerSlotZIndex = 5;
+    public const int EnemyBodyZIndex = 1000;
+    public const int EnemyHealthBarZIndex = 1001;
+    public const int TowerZIndex = 2000;
+    public const int SoldierBodyZIndex = 3000;
+    public const int SoldierHealthBarZIndex = 3001;
+    public const int FloatingTextZIndex = 4000;
     private readonly Dictionary<(int c, int r), Rectangle> _tileRects   = new();
+    private readonly List<(Vec2 Pos, FrameworkElement Visual)> _buildSlotVisuals = new();
     private (int c, int r) _hoverTile = (-1, -1);
+    private int _hoverSlotIndex = -1;
 
     // ─── Shape caches ────────────────────────────────────────────────────
     private readonly Dictionary<TowerInstance,  FrameworkElement>                              _towerShapes   = new();
     private readonly Dictionary<EnemyInstance,  (FrameworkElement body, Rectangle hpBg, Rectangle hpFg)> _enemyShapes = new();
     private readonly Dictionary<Projectile,     Shape>                                          _projShapes   = new();
-    private readonly Dictionary<HitEffect,      Ellipse>                                        _fxShapes     = new();
-    private readonly Dictionary<Soldier,        (Rectangle body, Rectangle hp)>                 _soldierShapes= new();
+    private readonly Dictionary<HitEffect,      Shape>                                          _fxShapes     = new();
+    private readonly Dictionary<Soldier,        (FrameworkElement body, Rectangle hp)>          _soldierShapes= new();
+    private readonly Dictionary<EnemyInstance,  double>                                         _enemyLastHp  = new();
+    private readonly Dictionary<EnemyInstance,  double>                                         _enemyHitTimers = new();
 
     // ─── Floating damage numbers ─────────────────────────────────────────
     private readonly List<(TextBlock tb, double life)> _damageLabels = new();
@@ -52,6 +65,7 @@ public partial class GamePage : Page
     private int    _lastDisplayedWave;
     private double _livesFlashTimer;
     private double _announceTimer;
+    private double _animationTime;
 
     private enum SkillMode { None, Meteor, Reinforce }
 
@@ -91,6 +105,7 @@ public partial class GamePage : Page
         double rawDt = Math.Min((now - _lastTick).TotalSeconds, 0.05);
         _lastTick   = now;
         _lastRawDt  = rawDt;
+        _animationTime += rawDt;
 
         // Wave announcement (runs on real-time, not game-time)
         int curWave = _engine.Spawner.CurrentWave;
@@ -172,7 +187,7 @@ public partial class GamePage : Page
         };
         Canvas.SetLeft(tb, pos.X - (crit ? 18 : 10));
         Canvas.SetTop(tb,  pos.Y - 22);
-        Canvas.SetZIndex(tb, 200);
+        Canvas.SetZIndex(tb, FloatingTextZIndex);
         GameCanvas.Children.Add(tb);
         _damageLabels.Add((tb, 0.80));
     }
@@ -201,6 +216,12 @@ public partial class GamePage : Page
     // ─── MAP DRAW ────────────────────────────────────────────────────────
     private void DrawMap()
     {
+        GameCanvas.Children.Clear();
+        _buildableTiles.Clear();
+        _tileRects.Clear();
+        _buildSlotVisuals.Clear();
+        _hoverTile = (-1, -1);
+        _hoverSlotIndex = -1;
         int cols = (int)(StageCatalog.MapWidth  / TileSize);
         int rows = (int)(StageCatalog.MapHeight / TileSize);
 
@@ -209,8 +230,11 @@ public partial class GamePage : Page
             ? new SolidColorBrush(Color.FromRgb(170, 210, 245))
             : new SolidColorBrush(Color.FromRgb(175, 140, 88));
         var buildBrush = ThemeBuildBrush(_stage.Theme);
+        bool hasMapImage = TryDrawMapImage();
 
         // Tile grid
+        if (!hasMapImage)
+        {
         for (int r = 0; r < rows; r++)
         {
             for (int c = 0; c < cols; c++)
@@ -239,6 +263,7 @@ public partial class GamePage : Page
                 }
             }
         }
+        }
 
         // Night-vision overlay
         if (_stage.Effects.Contains(EnvEffect.NightVision))
@@ -250,6 +275,15 @@ public partial class GamePage : Page
                 IsHitTestVisible = false
             });
 
+        if (hasMapImage) DrawImageBuildSlots();
+
+        if (!ShouldDrawDebugPathOverlay(hasMapImage))
+        {
+            GameCanvas.MouseMove -= OnCanvasMouseMove;
+            GameCanvas.MouseMove += OnCanvasMouseMove;
+            return;
+        }
+
         // Path lines + markers
         foreach (var path in _stage.Paths)
         {
@@ -258,7 +292,9 @@ public partial class GamePage : Page
                 {
                     X1 = path[i].X,   Y1 = path[i].Y,
                     X2 = path[i+1].X, Y2 = path[i+1].Y,
-                    Stroke = pathBrush, StrokeThickness = 34,
+                    Stroke = hasMapImage ? new SolidColorBrush(Color.FromArgb(210, 34, 197, 94)) : pathBrush,
+                    StrokeThickness = hasMapImage ? 5 : 34,
+                    StrokeDashArray = hasMapImage ? new DoubleCollection { 8, 6 } : null,
                     StrokeStartLineCap = PenLineCap.Round,
                     StrokeEndLineCap   = PenLineCap.Round,
                     IsHitTestVisible   = false, Opacity = 0.50
@@ -296,7 +332,71 @@ public partial class GamePage : Page
             }.Also(tb => { Canvas.SetLeft(tb, bp.X - 13); Canvas.SetTop(tb, bp.Y - 14); }));
         }
 
+        GameCanvas.MouseMove -= OnCanvasMouseMove;
         GameCanvas.MouseMove += OnCanvasMouseMove;
+    }
+
+    public static bool ShouldDrawDebugPathOverlay(bool hasMapImage) => !hasMapImage;
+
+    private bool TryDrawMapImage()
+    {
+        int chapter = AssetPreviewCatalog.ChapterForStage(_stage.Number);
+        var mapPath = AssetPreviewCatalog.FirstExisting(AssetPreviewCatalog.MapCandidates(chapter));
+        if (mapPath == null || TryLoadBitmap(mapPath) is not { } map) return false;
+
+        GameCanvas.Children.Add(new Image
+        {
+            Source = map,
+            Width = StageCatalog.MapWidth,
+            Height = StageCatalog.MapHeight,
+            Stretch = Stretch.Fill,
+            IsHitTestVisible = false
+        });
+        return true;
+    }
+
+    private void DrawImageBuildSlots()
+    {
+        int chapter = AssetPreviewCatalog.ChapterForStage(_stage.Number);
+        double slotSize = TowerSlotSizeForStage(_stage);
+        foreach (var slot in _stage.BuildSlots)
+        {
+            var visual = CreateTowerSlotVisual(chapter, slotSize);
+            Canvas.SetLeft(visual, slot.X - visual.Width / 2);
+            Canvas.SetTop(visual, slot.Y - visual.Height / 2);
+            Canvas.SetZIndex(visual, TowerSlotZIndex);
+            GameCanvas.Children.Add(visual);
+            _buildSlotVisuals.Add((slot, visual));
+        }
+    }
+
+    private static FrameworkElement CreateTowerSlotVisual(int chapter, double slotSize)
+    {
+        var slotPath = AssetPreviewCatalog.FirstExisting(AssetPreviewCatalog.TowerSlotCandidates(chapter));
+        if (slotPath != null && TryLoadBitmap(slotPath) is { } slotImage)
+        {
+            var image = new Image
+            {
+                Source = slotImage,
+                Width = slotSize * 1.32,
+                Height = slotSize,
+                Stretch = Stretch.Uniform,
+                ToolTip = slotPath,
+                IsHitTestVisible = false
+            };
+            RenderOptions.SetBitmapScalingMode(image, BitmapScalingMode.HighQuality);
+            return image;
+        }
+
+        return new Ellipse
+        {
+            Width = slotSize,
+            Height = slotSize * 0.68,
+            Fill = new SolidColorBrush(Color.FromArgb(55, 15, 23, 42)),
+            Stroke = new SolidColorBrush(Color.FromArgb(220, 250, 204, 21)),
+            StrokeThickness = 2.5,
+            IsHitTestVisible = false
+        };
     }
 
     private bool IsNearPath(Vec2 pt, double tol)
@@ -324,6 +424,24 @@ public partial class GamePage : Page
     private void OnCanvasMouseMove(object sender, MouseEventArgs e)
     {
         if (Overlay.Visibility == Visibility.Visible) return;
+        if (_buildSlotVisuals.Count > 0)
+        {
+            var point = e.GetPosition(GameCanvas);
+            int slotIndex = BuildSlotAt(new Vec2(point.X, point.Y));
+            if (slotIndex == _hoverSlotIndex) return;
+
+            if (_hoverSlotIndex >= 0 && _hoverSlotIndex < _buildSlotVisuals.Count)
+                _buildSlotVisuals[_hoverSlotIndex].Visual.Opacity = 1.0;
+
+            _hoverSlotIndex = slotIndex;
+            if (slotIndex >= 0)
+            {
+                var (slot, visual) = _buildSlotVisuals[slotIndex];
+                visual.Opacity = IsBuildSlotOccupied(slot) ? 0.55 : 0.92;
+            }
+            return;
+        }
+
         var tile = TileAt(e.GetPosition(GameCanvas));
         if (tile == _hoverTile) return;
 
@@ -340,6 +458,25 @@ public partial class GamePage : Page
             if (t.Pos.DistanceTo(center) < TileSize / 2) return true;
         return false;
     }
+
+    private int BuildSlotAt(Vec2 pos)
+    {
+        double maxDistance = TowerSlotSizeForStage(_stage) * 0.58;
+        int bestIndex = -1;
+        double bestDistance = maxDistance;
+
+        for (int i = 0; i < _stage.BuildSlots.Count; i++)
+        {
+            double distance = _stage.BuildSlots[i].DistanceTo(pos);
+            if (distance > bestDistance) continue;
+            bestDistance = distance;
+            bestIndex = i;
+        }
+
+        return bestIndex;
+    }
+
+    private bool IsBuildSlotOccupied(Vec2 slot) => _engine.Towers.Any(t => t.Pos.DistanceTo(slot) < 4);
 
     // ─── Theme brushes ───────────────────────────────────────────────────
     private static SolidColorBrush ThemeBuildBrush(StageTheme t) => t switch
@@ -376,42 +513,8 @@ public partial class GamePage : Page
 
     private void AddTowerVisual(TowerInstance t)
     {
-        var g    = new Grid { Width = 38, Height = 38 };
-        var rect = new Rectangle
-        {
-            Width = 38, Height = 38,
-            Fill  = HexBrush(t.CurrentColorHex),
-            Stroke = new SolidColorBrush(Color.FromRgb(20, 20, 20)),
-            StrokeThickness = 1.5, RadiusX = 7, RadiusY = 7
-        };
-        g.Children.Add(rect);
-
-        // Big icon
-        var icon = new TextBlock
-        {
-            Text     = t.CurrentIcon,
-            FontSize = 18,
-            HorizontalAlignment = HorizontalAlignment.Center,
-            VerticalAlignment   = VerticalAlignment.Center,
-            IsHitTestVisible = false
-        };
-        g.Children.Add(icon);
-
-        // Level indicator dots
-        var pips = new StackPanel
-        {
-            Orientation = Orientation.Horizontal,
-            HorizontalAlignment = HorizontalAlignment.Center,
-            VerticalAlignment   = VerticalAlignment.Bottom,
-            Margin = new Thickness(0, 0, 0, 2),
-            IsHitTestVisible = false
-        };
-        g.Children.Add(pips);
-
-        g.Tag = t;
-        g.IsHitTestVisible = false;
-        Canvas.SetLeft(g, t.Pos.X - 19);
-        Canvas.SetTop(g,  t.Pos.Y - 19);
+        double size = TowerVisualSizeFor(t);
+        var g = new Grid { Width = size, Height = size, IsHitTestVisible = false };
         GameCanvas.Children.Add(g);
         _towerShapes[t] = g;
 
@@ -422,43 +525,65 @@ public partial class GamePage : Page
     {
         if (_towerShapes[t] is not Grid g) return;
 
-        // Update color
-        if (g.Children[0] is Rectangle rect)
-            rect.Fill = HexBrush(t.CurrentColorHex);
-
-        // Update icon text
-        if (g.Children[1] is TextBlock icon)
-            icon.Text = t.CurrentIcon;
-
-        // Update level pips
-        if (g.Children[2] is StackPanel pips)
+        double size = TowerVisualSizeFor(t);
+        g.Width = size;
+        g.Height = size;
+        string visualKey = TowerVisualKey(t);
+        if (!Equals(g.Tag, visualKey))
         {
-            pips.Children.Clear();
-            if (!t.IsBranched)
-            {
-                int maxLvl = t.Def.Levels.Count;   // 3
-                for (int i = 0; i < maxLvl; i++)
-                {
-                    pips.Children.Add(new Ellipse
-                    {
-                        Width = 5, Height = 5, Margin = new Thickness(1.5, 0, 1.5, 0),
-                        Fill = i <= t.Level
-                            ? Brushes.Gold
-                            : new SolidColorBrush(Color.FromArgb(120, 60, 60, 60))
-                    });
-                }
-            }
-            else
-            {
-                // Branch badge
-                pips.Children.Add(new TextBlock
-                {
-                    Text     = t.Branch == TowerBranch.A ? "A" : "B",
-                    Foreground = Brushes.White, FontSize = 8, FontWeight = FontWeights.Bold
-                });
-            }
+            g.Children.Clear();
+            AddTowerSpriteVisual(g, t, size);
+            g.Tag = visualKey;
         }
+
+        var offset = AssetPreviewCatalog.TowerVisualOffsetFor(t.Def.Kind, t.Level, t.Branch);
+        Canvas.SetLeft(g, t.Pos.X - size / 2 + offset.X);
+        double anchor = AssetPreviewCatalog.TowerVisualAnchorFor(t.Def.Kind, t.Level, t.Branch);
+        Canvas.SetTop(g, t.Pos.Y - size * anchor + offset.Y);
+        Canvas.SetZIndex(g, TowerZIndexForY(t.Pos.Y));
     }
+
+    private void AddTowerSpriteVisual(Grid g, TowerInstance t, double size)
+    {
+        var item = AssetPreviewCatalog.TowerAssetFor(t.Def.Kind, t.Level, t.Branch);
+        var path = AssetPreviewCatalog.FirstExisting(AssetPreviewCatalog.AssetCandidates(item));
+        if (path != null && TryLoadBitmap(path) is { } towerImage)
+        {
+            var image = new Image
+            {
+                Source = towerImage,
+                Width = size,
+                Height = size,
+                Stretch = Stretch.Uniform,
+                ToolTip = path,
+                IsHitTestVisible = false
+            };
+            RenderOptions.SetBitmapScalingMode(image, BitmapScalingMode.HighQuality);
+            g.Children.Add(image);
+            return;
+        }
+
+        double corner = Math.Max(7, size * 0.12);
+        var rect = new Rectangle
+        {
+            Width = size, Height = size,
+            Fill = HexBrush(t.CurrentColorHex),
+            Stroke = new SolidColorBrush(Color.FromRgb(20, 20, 20)),
+            StrokeThickness = 1.5, RadiusX = corner, RadiusY = corner
+        };
+        g.Children.Add(rect);
+        g.Children.Add(new TextBlock
+        {
+            Text = t.CurrentIcon,
+            FontSize = size * 0.42,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center,
+            IsHitTestVisible = false
+        });
+    }
+
+    private static string TowerVisualKey(TowerInstance t) =>
+        $"{t.Def.Kind}:{t.Level}:{t.Branch}";
 
     private void RemoveTowerVisual(TowerInstance t)
     {
@@ -470,11 +595,51 @@ public partial class GamePage : Page
     }
 
     // ── Enemies ─────────────────────────────────────────────────────────
+
+    private static double TowerSlotSizeForStage(StageDef stage) =>
+        AssetPreviewCatalog.PreviewMapForChapter(AssetPreviewCatalog.ChapterForStage(stage.Number)).TowerSlotSize;
+
+    private double TowerVisualSizeFor(TowerInstance tower) =>
+        AssetPreviewCatalog.TowerVisualSizeFor(
+            AssetPreviewCatalog.ChapterForStage(_stage.Number),
+            tower.Def.Kind,
+            tower.Level,
+            tower.Branch);
+
+    public static int TowerZIndexForY(double y) =>
+        TowerZIndex + Math.Max(0, (int)Math.Round(y));
+    public static double TowerVisualSizeForStage(StageDef stage) =>
+        AssetPreviewCatalog.TowerVisualSizeForChapter(AssetPreviewCatalog.ChapterForStage(stage.Number));
     private const double EnemyDisplayScale = 1.5;
 
     public static double EnemySpriteSizeFor(EnemyDef def) => def.Radius * 2.4 * EnemyDisplayScale;
 
     public static double EnemyHealthBarWidthFor(EnemyDef def) => def.Radius * 2 * EnemyDisplayScale;
+
+    private const double EnemyHitFlashDuration = 0.16;
+
+    public static double EnemyBobOffsetFor(double time, EnemyKind kind, double seed) =>
+        EnemyUsesBob(kind) ? Math.Sin(time * 5.0 + seed + (int)kind * 0.31) * 2.4 : 0;
+
+    public static Vec2 EnemyHitShakeOffsetFor(double hitTimer, double time)
+    {
+        if (hitTimer <= 0) return new Vec2(0, 0);
+
+        double intensity = Math.Clamp(hitTimer / EnemyHitFlashDuration, 0, 1);
+        return new Vec2(
+            Math.Sin(time * 76.0) * 5.0 * intensity,
+            Math.Cos(time * 61.0) * 2.0 * intensity);
+    }
+
+    public static double EnemyHitFlashOpacityFor(double hitTimer) =>
+        Math.Clamp(hitTimer / EnemyHitFlashDuration, 0, 1) * 0.72;
+
+    private static bool EnemyUsesBob(EnemyKind kind) => kind switch
+    {
+        EnemyKind.Fast or EnemyKind.EliteWyvern or EnemyKind.EliteCharge
+            or EnemyKind.MidBossCharge or EnemyKind.BossCharge => true,
+        _ => false
+    };
 
     private void RenderEnemies()
     {
@@ -486,14 +651,17 @@ public partial class GamePage : Page
             GameCanvas.Children.Remove(_enemyShapes[key].hpBg);
             GameCanvas.Children.Remove(_enemyShapes[key].hpFg);
             _enemyShapes.Remove(key);
+            _enemyLastHp.Remove(key);
+            _enemyHitTimers.Remove(key);
         }
 
+        int chapter = AssetPreviewCatalog.ChapterForStage(_stage.Number);
         foreach (var e in _engine.Enemies)
         {
             if (!_enemyShapes.ContainsKey(e))
             {
                 double spriteSize = EnemySpriteSizeFor(e.Def);
-                var body = EnemyFallbackImageFactory.CreateSpriteVisual(e.Def.Kind, spriteSize);
+                var body = EnemyFallbackImageFactory.CreateSpriteVisual(chapter, e.Def.Kind, spriteSize);
                 double initialBarWidth = EnemyHealthBarWidthFor(e.Def);
                 var hpBg = new Rectangle
                 {
@@ -511,21 +679,39 @@ public partial class GamePage : Page
                 GameCanvas.Children.Add(hpBg);
                 GameCanvas.Children.Add(hpFg);
                 GameCanvas.Children.Add(body);
+                _enemyLastHp[e] = e.Hp;
+                _enemyHitTimers[e] = 0;
             }
 
             var sh = _enemyShapes[e];
+            if (_enemyLastHp.TryGetValue(e, out var previousHp) && e.Hp < previousHp - 0.001)
+                _enemyHitTimers[e] = EnemyHitFlashDuration;
+            _enemyLastHp[e] = e.Hp;
+
+            _enemyHitTimers.TryGetValue(e, out var hitTimer);
+            if (hitTimer > 0)
+            {
+                hitTimer = Math.Max(0, hitTimer - _lastRawDt);
+                _enemyHitTimers[e] = hitTimer;
+            }
+
             double spriteHeight = EnemySpriteSizeFor(e.Def);
             double barWidth = EnemyHealthBarWidthFor(e.Def);
             double bx = e.Pos.X - barWidth / 2;
             double by = e.Pos.Y - spriteHeight / 2 - 9;
+            double bob = EnemyBobOffsetFor(_animationTime, e.Def.Kind, e.PathIndex * 0.73 + e.WaypointIndex * 0.17);
+            var shake = EnemyHitShakeOffsetFor(hitTimer, _animationTime);
 
-            Canvas.SetLeft(sh.body, e.Pos.X - sh.body.Width / 2);
-            Canvas.SetTop (sh.body, e.Pos.Y - sh.body.Height / 2);
+            Canvas.SetLeft(sh.body, e.Pos.X - sh.body.Width / 2 + shake.X);
+            Canvas.SetTop (sh.body, e.Pos.Y - sh.body.Height / 2 + bob + shake.Y);
             Canvas.SetLeft(sh.hpBg, bx); Canvas.SetTop(sh.hpBg, by);
             Canvas.SetLeft(sh.hpFg, bx); Canvas.SetTop(sh.hpFg, by);
 
             // HP bar width + color gradient
             double ratio = Math.Max(0, e.Hp / e.MaxHp);
+            Canvas.SetZIndex(sh.body, EnemyBodyZIndex);
+            Canvas.SetZIndex(sh.hpBg, EnemyHealthBarZIndex);
+            Canvas.SetZIndex(sh.hpFg, EnemyHealthBarZIndex);
             sh.hpFg.Width = barWidth * ratio;
             sh.hpFg.Fill  = HpBarBrush(ratio);
 
@@ -533,6 +719,17 @@ public partial class GamePage : Page
             if (e.SlowTimer > 0)      sh.body.Opacity = 0.65;   // frozen / slowed
             else if (e.DotTimer > 0)  sh.body.Opacity = 0.85;   // burning
             else                      sh.body.Opacity = 1.0;
+
+            double flashOpacity = EnemyHitFlashOpacityFor(hitTimer);
+            sh.body.Effect = flashOpacity > 0
+                ? new DropShadowEffect
+                {
+                    Color = Colors.White,
+                    BlurRadius = 18,
+                    ShadowDepth = 0,
+                    Opacity = flashOpacity
+                }
+                : null;
         }
     }
 
@@ -586,19 +783,30 @@ public partial class GamePage : Page
         {
             if (!_fxShapes.ContainsKey(fx))
             {
-                var shape = new Ellipse
-                {
-                    Width  = fx.Radius * 2, Height = fx.Radius * 2,
-                    Fill   = HexBrush(fx.ColorHex),
-                    IsHitTestVisible = false, Opacity = 0.65
-                };
+                Shape shape = fx.Ring
+                    ? new Ellipse
+                    {
+                        Width = fx.Radius * 2,
+                        Height = fx.Radius * 2,
+                        Fill = Brushes.Transparent,
+                        Stroke = HexBrush(fx.ColorHex),
+                        StrokeThickness = fx.StrokeThickness,
+                        IsHitTestVisible = false,
+                        Opacity = 0.80
+                    }
+                    : new Ellipse
+                    {
+                        Width  = fx.Radius * 2, Height = fx.Radius * 2,
+                        Fill   = HexBrush(fx.ColorHex),
+                        IsHitTestVisible = false, Opacity = 0.65
+                    };
                 _fxShapes[fx] = shape;
                 GameCanvas.Children.Add(shape);
             }
             var s = _fxShapes[fx];
             Canvas.SetLeft(s, fx.Pos.X - fx.Radius);
             Canvas.SetTop(s,  fx.Pos.Y - fx.Radius);
-            s.Opacity = 0.65 * Math.Max(0, fx.TimeLeft / fx.TotalTime);
+            s.Opacity = (fx.Ring ? 0.80 : 0.65) * Math.Max(0, fx.TimeLeft / fx.TotalTime);
         }
     }
 
@@ -619,20 +827,22 @@ public partial class GamePage : Page
         }
         foreach (var s in all)
         {
+            string visualKey = SoldierVisualKey(s);
+            if (_soldierShapes.TryGetValue(s, out var existing) && !Equals(existing.body.Tag, visualKey))
+            {
+                GameCanvas.Children.Remove(existing.body);
+                GameCanvas.Children.Remove(existing.hp);
+                _soldierShapes.Remove(s);
+            }
+
             if (!_soldierShapes.ContainsKey(s))
             {
-                bool isRein = s.Owner == null;
-                var body = new Rectangle
-                {
-                    Width = 13, Height = 13,
-                    Fill  = isRein ? Brushes.Goldenrod : Brushes.SteelBlue,
-                    Stroke = Brushes.White, StrokeThickness = 1,
-                    IsHitTestVisible = false
-                };
+                var body = CreateSoldierVisual(s, visualKey);
                 var hp = new Rectangle
                 {
-                    Width = 13, Height = 3,
-                    Fill  = Brushes.LimeGreen,
+                    Width = SoldierHealthBarWidth(body),
+                    Height = 3,
+                    Fill = Brushes.LimeGreen,
                     IsHitTestVisible = false
                 };
                 _soldierShapes[s] = (body, hp);
@@ -641,14 +851,66 @@ public partial class GamePage : Page
             }
             var sh = _soldierShapes[s];
             sh.body.Visibility = s.Alive ? Visibility.Visible : Visibility.Collapsed;
-            sh.hp.Visibility   = s.Alive ? Visibility.Visible : Visibility.Collapsed;
-            Canvas.SetLeft(sh.body, s.Pos.X - 6.5);
-            Canvas.SetTop(sh.body,  s.Pos.Y - 6.5);
-            Canvas.SetLeft(sh.hp,   s.Pos.X - 6.5);
-            Canvas.SetTop(sh.hp,    s.Pos.Y - 14);
-            sh.hp.Width = 13 * Math.Max(0, s.Hp / Math.Max(1, s.MaxHp));
+            sh.hp.Visibility = s.Alive ? Visibility.Visible : Visibility.Collapsed;
+            double barWidth = SoldierHealthBarWidth(sh.body);
+            Canvas.SetLeft(sh.body, s.Pos.X - sh.body.Width / 2);
+            Canvas.SetTop(sh.body, s.Pos.Y - sh.body.Height * 0.80);
+            Canvas.SetLeft(sh.hp, s.Pos.X - barWidth / 2);
+            Canvas.SetTop(sh.hp, s.Pos.Y - sh.body.Height * 0.88);
+            Canvas.SetZIndex(sh.body, SoldierBodyZIndex);
+            Canvas.SetZIndex(sh.hp, SoldierHealthBarZIndex);
+            sh.hp.Width = barWidth * Math.Max(0, s.Hp / Math.Max(1, s.MaxHp));
         }
     }
+
+    private FrameworkElement CreateSoldierVisual(Soldier soldier, string visualKey)
+    {
+        var item = SoldierAssetFor(soldier);
+        var path = AssetPreviewCatalog.FirstExisting(AssetPreviewCatalog.AssetCandidates(item));
+        if (path != null && TryLoadBitmap(path) is { } soldierImage)
+        {
+            var image = new Image
+            {
+                Source = soldierImage,
+                Width = item.PreviewSize,
+                Height = item.PreviewSize,
+                Stretch = Stretch.Uniform,
+                ToolTip = path,
+                Tag = visualKey,
+                IsHitTestVisible = false
+            };
+            RenderOptions.SetBitmapScalingMode(image, BitmapScalingMode.HighQuality);
+            return image;
+        }
+
+        return new Rectangle
+        {
+            Width = 13,
+            Height = 13,
+            Fill = soldier.Owner == null ? Brushes.Goldenrod : Brushes.SteelBlue,
+            Stroke = Brushes.White,
+            StrokeThickness = 1,
+            Tag = visualKey,
+            IsHitTestVisible = false
+        };
+    }
+
+    private static AssetPreviewItem SoldierAssetFor(Soldier soldier) =>
+        AssetPreviewCatalog.SoldierAssetFor(
+            soldier.Owner?.Level ?? 0,
+            soldier.Owner?.Branch ?? TowerBranch.None,
+            soldier.Owner == null);
+
+    private static string SoldierVisualKey(Soldier soldier)
+    {
+        var owner = soldier.Owner;
+        return owner == null
+            ? "Reinforcement"
+            : $"{owner.Level}:{owner.Branch}";
+    }
+
+    private static double SoldierHealthBarWidth(FrameworkElement body) =>
+        Math.Max(13, Math.Min(32, body.Width * 0.62));
 
     // ── Boss HP bar ─────────────────────────────────────────────────────
     private void UpdateBossHpBar()
@@ -753,6 +1015,29 @@ public partial class GamePage : Page
         // Close overlay on background click
         if (Overlay.Visibility == Visibility.Visible)
         {
+            ClearSelection();
+            return;
+        }
+
+        if (_stage.BuildSlots.Count > 0)
+        {
+            double towerHitRadius = TowerVisualSizeForStage(_stage) * 0.75;
+            foreach (var t in _engine.Towers)
+            {
+                if (t.Pos.DistanceTo(pos) < towerHitRadius)
+                {
+                    SelectTower(t);
+                    return;
+                }
+            }
+
+            int slotIndex = BuildSlotAt(pos);
+            if (slotIndex >= 0 && !IsBuildSlotOccupied(_stage.BuildSlots[slotIndex]))
+            {
+                ShowBuildMenu(_stage.BuildSlots[slotIndex]);
+                return;
+            }
+
             ClearSelection();
             return;
         }
@@ -1092,6 +1377,7 @@ public partial class GamePage : Page
     /// </summary>
     private void ShowStageIntro()
     {
+        int chapter = AssetPreviewCatalog.ChapterForStage(_stage.Number);
         var entries = StageIntroEnemyInfoBuilder.Build(_stage).ToList();
         var rowBorders = new Dictionary<EnemyKind, Border>();
         var detailHost = new ContentControl();
@@ -1249,7 +1535,7 @@ public partial class GamePage : Page
 
         Border MakeStageIntroEnemyRow(StageIntroEnemyInfo info)
         {
-            var icon = EnemyFallbackImageFactory.CreateIconVisual(info.Kind, 46);
+            var icon = EnemyFallbackImageFactory.CreateIconVisual(chapter, info.Kind, 46);
             icon.HorizontalAlignment = HorizontalAlignment.Center;
             icon.VerticalAlignment = VerticalAlignment.Center;
 
@@ -1336,7 +1622,7 @@ public partial class GamePage : Page
 
         FrameworkElement MakeStageIntroDetail(StageIntroEnemyInfo info)
         {
-            var icon = EnemyFallbackImageFactory.CreateIconVisual(info.Kind, 92);
+            var icon = EnemyFallbackImageFactory.CreateIconVisual(chapter, info.Kind, 92);
             icon.HorizontalAlignment = HorizontalAlignment.Center;
             icon.VerticalAlignment = VerticalAlignment.Center;
 
@@ -1560,4 +1846,22 @@ public partial class GamePage : Page
     // ─── Utility ─────────────────────────────────────────────────────────
     private static SolidColorBrush HexBrush(string hex)
         => (SolidColorBrush)new BrushConverter().ConvertFromString(hex)!;
+
+    private static BitmapImage? TryLoadBitmap(string path)
+    {
+        try
+        {
+            var image = new BitmapImage();
+            image.BeginInit();
+            image.CacheOption = BitmapCacheOption.OnLoad;
+            image.UriSource = new Uri(path, UriKind.Absolute);
+            image.EndInit();
+            image.Freeze();
+            return image;
+        }
+        catch
+        {
+            return null;
+        }
+    }
 }
